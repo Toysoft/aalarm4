@@ -31,6 +31,7 @@ class LcdControl(object):
         self.gpio = MCP.MCP23008(address)
         self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, lines, cols, gpio=self.gpio, backlight=backlight_pin, invert_polarity=False)
         self.timeout = timeout
+        self.lcd.set_backlight(0)
 
     def display(self, message):
         print('LCD [%s]' % message)
@@ -46,6 +47,9 @@ class LcdControl(object):
     def menuButton(self, button):
         if not self.currentMenu:
             self.displayMenu()
+
+    def lcdOff():
+        self.lcd.set_backlight(0)
 
 
 class MenuControl(object):
