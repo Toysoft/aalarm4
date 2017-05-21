@@ -79,17 +79,20 @@ class MenuControl(object):
             self.queue.append('DOWN')
 
 class Alarm(object):
-    state = False
+    state = 0
+    dStateAlarm = {0: 'offline', 1: 'ready', 2: 'online'}
     dStatusAlarm = {0: 'nominal', 1: 'breach', 2: 'warning', 3: 'alert'}
     status = 0
 
     def toggleState(self):
-        self.state = not self.state
-        if not self.state:
+        if self.state == 0:
+            self.state = 1
+        else:
+            self.state = 0
             self.status = 0
 
     def setOnline(self):
-        self.state = 1
+        self.state = 2
 
     def setOffline(self):
         self.state = 0
@@ -104,17 +107,20 @@ class Alarm(object):
                 self.status = 3;
 
     def currentState(self):
-        if self.state:
-            return 'online'
-        else:
-            return 'offline'
+        return self.dStateAlarm[self.state]
 
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
 
-    def isStatusBeyondBreach(self):
-        if self.status > 0:
+    def isReady(self):
+        if self.state == 1:
             return True
+        return False
+
+    def isWatching(self):
+        if self.state == 2: #is online
+            if self.status == 0: #is not aleady breach
+                return True
         return False
 
 class NfcReader(object):
@@ -159,7 +165,7 @@ class NfcReader(object):
 
 class GpioSensor(object):
     PIN_SENSOR_1 = 6
-    PIN_SENSOR_2 = 5
+    # PIN_SENSOR_2 = 5
     TIMEOUT_WARNING = 5
     TIMEOUT_ALERT = 10
 
@@ -172,13 +178,16 @@ class GpioSensor(object):
         self.queue = queue
         self.lock = lock
         GPIO.setup(self.PIN_SENSOR_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
-        GPIO.setup(self.PIN_SENSOR_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_SENSOR_2, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
+        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.BOTH, callback=self.callbackSensor, bouncetime=500)
+        # GPIO.setup(self.PIN_SENSOR_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # GPIO.add_event_detect(self.PIN_SENSOR_2, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
 
     def callbackSensor(self,channel):
+        event = "FALLING"
+        if GPIO.input(channel):
+            event = "RISING"
         with self.lock:
-            self.queue.append('SENSOR_BREACH')
+            self.queue.append('SENSOR_' + event)
 
 
 #Threading queues and locks
@@ -244,13 +253,16 @@ def main_loop():
         if queue_sensors:
             with lock_sensors:
                 sensor = queue_sensors.popleft()
-                if (alarm.currentState() == 'online' and not alarm.isStatusBeyondBreach()):
-                    if sensor == 'SENSOR_BREACH':
+
+                if alarm.isReady():
+                    if sensor == 'SENSOR_RISING':
+                        alarm.setOnline()
+                if alarm.isWatching():
+                    if sensor == 'SENSOR_FALLING':
                         alarm.sensorBreach()
                         setTimers(6)
-                    # elif sensor == 'SENSOR_ESCALADE':
-                    #     alarm.sensorBreach()
-                    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+
+                lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
         if queue_nfc:
             with lock_nfc:
