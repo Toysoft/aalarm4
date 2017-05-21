@@ -1,0 +1,14 @@
+= aalarm4
+
+Rpi based alarm system with adafruit NFC and LCD
+
+== Requirements
+
+Adafruit NFC card read breakout card
+https://www.adafruit.com/product/364
+
+16x2 caracter LCD
+https://www.adafruit.com/product/181
+
+I2C backpack
+https://www.adafruit.com/product/292
