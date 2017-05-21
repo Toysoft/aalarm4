@@ -1,0 +1,4 @@
+[nfc-keys]
+keys=key1,key2
+key1=<NFC_KEY_SAMPLE1>
+key2=<NFC_KEY_SAMPLE2>
