@@ -2,3 +2,10 @@
 keys=key1,key2
 key1=<NFC_KEY_SAMPLE1>
 key2=<NFC_KEY_SAMPLE2>
+
+[lcd]
+address=0x20
+lines=16
+cols=2
+backlight_pin=7
+backlight_auto_off=10

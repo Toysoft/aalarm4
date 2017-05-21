@@ -22,16 +22,15 @@ from flask import Flask
 import ConfigParser
 
 class LcdControl(object):
-    address = 0x20
-    lines = 16
-    cols = 2
+    timeout = None
     gpio = None
     lcd = None
     currentMenu = None
 
-    def __init__(self):
-        self.gpio = MCP.MCP23008(self.address)
-        self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
+    def __init__(self, address, lines, cols, backlight_pin, timeout):
+        self.gpio = MCP.MCP23008(address)
+        self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, lines, cols, gpio=self.gpio, backlight=backlight_pin, invert_polarity=False)
+        self.timeout = timeout
 
     def display(self, message):
         print('LCD [%s]' % message)
@@ -275,7 +274,14 @@ def main_loop():
 
 
 # LCD
-lcdControl = LcdControl()
+#def __init__(self, address, lines, cols, backlight_pin, timeout):
+lcdAddress = int(configParser.get('lcd', 'address'), 16)
+lcdLines = int(configParser.get('lcd', 'lines'))
+lcdCols = int(configParser.get('lcd', 'cols'))
+lcdBacklightPin = int(configParser.get('lcd', 'backlight_pin'))
+lcdTimeout = int(configParser.get('lcd', 'backlight_auto_off'))
+
+lcdControl = LcdControl(address=lcdAddress, lines=lcdLines, cols=lcdCols, backlight_pin=lcdBacklightPin, timeout=lcdTimeout)
 lcdControl.display('Startup...')
 
 # Controls
