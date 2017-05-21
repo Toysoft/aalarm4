@@ -112,6 +112,11 @@ class Alarm(object):
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
 
+    def isStatusBeyondBreach(self):
+        if self.status > 0:
+            return True
+        return False
+
 class NfcReader(object):
     pn532 = None
 
@@ -157,8 +162,6 @@ class GpioSensor(object):
     PIN_SENSOR_2 = 5
     TIMEOUT_WARNING = 5
     TIMEOUT_ALERT = 10
-    timerWarning = None
-    timerAlert = None
 
     running = None
     queue = None
@@ -174,31 +177,9 @@ class GpioSensor(object):
         GPIO.add_event_detect(self.PIN_SENSOR_2, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
 
     def callbackSensor(self,channel):
-        #alarm.sensorBreach()
-        #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-        self.timerWarning = Timer(2,self.callbackEscalade,args=[channel])
-        self.timerWarning.start()
-        self.timerAlert = Timer(5,self.callbackEscalade,args=[channel])
-        self.timerAlert.start()
         with self.lock:
             self.queue.append('SENSOR_BREACH')
 
-    def callbackEscalade(self, channel):
-        #alarm.sensorBreach()
-        #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-        print('escalade sensor', channel)
-        with self.lock:
-            self.queue.append('SENSOR_ESCALADE')
-
-    def stop(self):
-        print('stop timers')
-
-        if self.timerWarning is not None:
-            print('stop warning')
-            self.timerWarning.cancel()
-        if self.timerAlert is not None:
-            print('stop alert')
-            self.timerAlert.cancel()
 
 #Threading queues and locks
 queue_sensors = deque()
@@ -224,6 +205,34 @@ for key_name in keys.split(','):
     key_value = configParser.get('nfc-keys', key_name)
     validUid[key_name] = key_value
 
+#Timers
+timerWarning = None
+timerAlert = None
+
+def setTimers(channel):
+    timerWarning = Timer(5, callbackEscalade, args=[channel, 'warning'])
+    timerAlert = Timer(10, callbackEscalade, args=[channel, 'alert'])
+    timerWarning.start()
+    timerAlert.start()
+
+def callbackEscalade(channel, timerName):
+    print('Escalade ' + timerName)
+    if timerName == 'warning':
+        timerWarning = None
+    if timerName == 'alert':
+        timerAlert = None
+    alarm.sensorBreach()
+    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+
+def stop():
+    print('stop timers')
+    if timerWarning is not None:
+        print('stop warning')
+        timerWarning.cancel()
+    if timerAlert is not None:
+        print('stop alert')
+        timerAlert.cancel()
+
 def main_loop():
     while True:
         if queue_buttons:
@@ -235,11 +244,12 @@ def main_loop():
         if queue_sensors:
             with lock_sensors:
                 sensor = queue_sensors.popleft()
-                if (alarm.currentState() == 'online'):
+                if (alarm.currentState() == 'online' and not alarm.isStatusBeyondBreach()):
                     if sensor == 'SENSOR_BREACH':
                         alarm.sensorBreach()
-                    elif sensor == 'SENSOR_ESCALADE':
-                        alarm.sensorBreach()
+                        setTimers(6)
+                    # elif sensor == 'SENSOR_ESCALADE':
+                    #     alarm.sensorBreach()
                     lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
         if queue_nfc:
