@@ -27,60 +27,90 @@ Using sudo raspi-config, enable ssh, i2c, spi
 
 Add your custom user and remove defalt pi user
 
+[source,bash]
+----
 sudo adduser USER
 sudo userdel pi
+----
 
 Then, add USER to required groups
 
+[source,bash]
+----
 sudo adduser USER sudo
 sudo adduser USER gpio
 sudo adduser USER spi
 sudo adduser USER i2c
+----
 
 == Install python tools
 
 TODO Some of these may not be required
 
+[source,bash]
+----
 sudo apt-get update
 sudo apt-get install build-essential python-dev python-smbus python-pip
 sudo apt-get install -y python3 python3-pip python-dev
+----
 
 == Create python3 virtualenv
 
+[source,bash]
+----
 pip install virtualenv
-
 sudo apt-get install python3
-
 virtualenv -p /usr/bin/python3 py3env
-
 source py3env/bin/activate
+----
 
 == Install libs in virtualenv
 
 === GPIO
 
+[source,bash]
+----
 pip3 install rpi.gpio
+----
 
 === ConfigParser
 
+[source,bash]
+----
 pip install ConfigParser
+----
 
 === Customised CharLCD with backlight managment
 
+[source,bash]
+----
 clone https://github.com/kemkem/Adafruit_Python_CharLCD.git
 cd Adafruit_Python_CharLCD
 git checkout i2c_backplate_backlight
-
 python setup.py install
+----
 
 === Others required libraries from Adafruit
 
+===== GPIO
+
+[source,bash]
+----
 cd Adafruit_Python_GPIO
 python setup.py install
+----
 
+===== PN532
+
+[source,bash]
+----
 cd Adafruit_Python_PN532
 python setup.py install
+----
 
 == Install Flask
 
+[source,bash]
+----
 pip install Flask
+----
