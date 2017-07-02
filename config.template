@@ -9,3 +9,9 @@ lines=16
 cols=2
 backlight_pin=7
 backlight_auto_off=10
+
+[domoticz]
+login=<DOMOTICZ REST LOGIN>
+password=<DOMOTICZ REST PASSWORD>
+sceneLeave=<DOMOTICZ URL TO CALL WHEN SET ONLINE>
+sceneEnter=<DOMOTICZ URL TO CALL WHEN SET OFFLINE>

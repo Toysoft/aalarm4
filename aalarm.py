@@ -21,6 +21,9 @@ from flask import Flask
 
 import configparser
 
+import requests
+from requests.auth import HTTPBasicAuth
+
 class LcdControl(object):
     address = 0x20
     lines = 16
@@ -84,11 +87,16 @@ class Alarm(object):
     status = 0
 
     def toggleState(self):
-        print('Toggle [%s]' % self.state)
+        print('Toggle before [%s]' % self.state)
         self.state = not self.state
+        print('Toggle after [%s]' % self.state)
         if not self.state:
-            print('Toggle!')
+            print('Online')
             self.status = 0
+            callDomoticz(configDomoticzSceneLeaveUrl)
+        else:
+            print('Offline')
+            callDomoticz(configDomoticzSceneEnterUrl)
 
     def setOnline(self):
         self.state = 1
@@ -225,14 +233,29 @@ configParser = configparser.RawConfigParser()
 configFilePath = r'config'
 configParser.read(configFilePath)
 
-keys = configParser.get('nfc-keys', 'keys')
+configNfckeys = configParser.get('nfc-keys', 'keys')
 
 validUid = {}
-for key_name in keys.split(','):
+for key_name in configNfckeys.split(','):
     print('key [%s]' % key_name)
     key_value = configParser.get('nfc-keys', key_name)
     print('value [%s]' % key_value)
     validUid[key_name] = key_value
+
+configDomoticzLogin = configParser.get('domoticz', 'login')
+configDomoticzPwd = configParser.get('domoticz', 'password')
+
+configDomoticzSceneLeaveUrl = configParser.get('domoticz', 'sceneLeave')
+configDomoticzSceneEnterUrl = configParser.get('domoticz', 'sceneEnter')
+
+#sceneEnter="http://192.168.0.23:8080/json.htm?type=command&param=switchscene&idx=8&switchcmd=On";
+#scenePresenceOn="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=On";
+#scenePresenceOff="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=Off";
+
+def callDomoticz(url):
+    print(print('call [%s]' % url))
+    response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
+    print(response)
 
 def main_loop():
     while True:
