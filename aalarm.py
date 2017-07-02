@@ -19,29 +19,24 @@ from threading import Timer
 
 from flask import Flask
 
-import ConfigParser
+import configparser
 
 class LcdControl(object):
-    timeout = None
+    address = 0x20
+    lines = 16
+    cols = 2
     gpio = None
     lcd = None
     currentMenu = None
-    timerOff = None
 
-    def __init__(self, address, lines, cols, backlight_pin, timeout):
-        self.gpio = MCP.MCP23008(address)
-        self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, lines, cols, gpio=self.gpio, backlight=backlight_pin, invert_polarity=False)
-        self.timeout = timeout
+    def __init__(self):
+        self.gpio = MCP.MCP23008(self.address)
+        self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
 
     def display(self, message):
         print('LCD [%s]' % message)
-        self.lcdOn()
         self.lcd.clear()
         self.lcd.message(message)
-        if self.timerOff is not None:
-            self.timerOff.cancel()
-        self.timerOff = Timer(self.timeout, self.lcdOff, args=[])
-        self.timerOff.start()
 
     def displayState(self, state, status):
         self.display('State [' + state + ']\n' + 'Status [' + status + ']')
@@ -52,12 +47,6 @@ class LcdControl(object):
     def menuButton(self, button):
         if not self.currentMenu:
             self.displayMenu()
-
-    def lcdOn(self):
-        self.lcd.set_backlight(1)
-
-    def lcdOff(self):
-        self.lcd.set_backlight(0)
 
 
 class MenuControl(object):
@@ -90,20 +79,19 @@ class MenuControl(object):
             self.queue.append('DOWN')
 
 class Alarm(object):
-    state = 0
-    dStateAlarm = {0: 'offline', 1: 'ready', 2: 'online'}
+    state = False
     dStatusAlarm = {0: 'nominal', 1: 'breach', 2: 'warning', 3: 'alert'}
     status = 0
 
     def toggleState(self):
-        if self.state == 0:
-            self.state = 1
-        else:
-            self.state = 0
+        print('Toggle [%s]' % self.state)
+        self.state = not self.state
+        if not self.state:
+            print('Toggle!')
             self.status = 0
 
     def setOnline(self):
-        self.state = 2
+        self.state = 1
 
     def setOffline(self):
         self.state = 0
@@ -118,21 +106,13 @@ class Alarm(object):
                 self.status = 3;
 
     def currentState(self):
-        return self.dStateAlarm[self.state]
+        if self.state:
+            return 'online'
+        else:
+            return 'offline'
 
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
-
-    def isReady(self):
-        if self.state == 1:
-            return True
-        return False
-
-    def isWatching(self):
-        if self.state == 2: #is online
-            if self.status == 0: #is not aleady breach
-                return True
-        return False
 
 class NfcReader(object):
     pn532 = None
@@ -176,9 +156,11 @@ class NfcReader(object):
 
 class GpioSensor(object):
     PIN_SENSOR_1 = 6
-    # PIN_SENSOR_2 = 5
+    PIN_SENSOR_2 = 5
     TIMEOUT_WARNING = 5
     TIMEOUT_ALERT = 10
+    timerWarning = None
+    timerAlert = None
 
     running = None
     queue = None
@@ -189,17 +171,42 @@ class GpioSensor(object):
         self.queue = queue
         self.lock = lock
         GPIO.setup(self.PIN_SENSOR_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.BOTH, callback=self.callbackSensor, bouncetime=500)
-        # GPIO.setup(self.PIN_SENSOR_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        # GPIO.add_event_detect(self.PIN_SENSOR_2, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
+        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
+        GPIO.setup(self.PIN_SENSOR_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(self.PIN_SENSOR_2, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
 
     def callbackSensor(self,channel):
-        event = "FALLING"
-        if GPIO.input(channel):
-            event = "RISING"
-        with self.lock:
-            self.queue.append('SENSOR_' + event)
+        #alarm.sensorBreach()
+        #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+        if not self.timerWarning:
+            self.timerWarning = Timer(5,self.callbackEscalade,args=[channel, 'warning'])
+            self.timerWarning.start()
+            self.timerAlert = Timer(10,self.callbackEscalade,args=[channel, 'alert'])
+            self.timerAlert.start()
+            with self.lock:
+                self .queue.append('SENSOR_BREACH')
 
+    def callbackEscalade(self, channel, timerName):
+        #alarm.sensorBreach()
+        #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+        print('Escalade ' + timerName)
+        if timerName == 'alert':
+            self.timerWarning = None
+            self.timerAlert = None
+
+        #print('escalade sensor', channel)
+        with self.lock:
+            self.queue.append('SENSOR_ESCALADE')
+
+    def stop(self):
+        print('stop timers')
+
+        if self.timerWarning is not None:
+            print('stop warning')
+            self.timerWarning.cancel()
+        if self.timerAlert is not None:
+            print('stop alert')
+            self.timerAlert.cancel()
 
 #Threading queues and locks
 queue_sensors = deque()
@@ -214,44 +221,18 @@ lock_buttons = threading.Lock()
 running = True
 
 #ConfigParser
-configParser = ConfigParser.RawConfigParser()
+configParser = configparser.RawConfigParser()
 configFilePath = r'config'
 configParser.read(configFilePath)
 
-#Load valid card keys
 keys = configParser.get('nfc-keys', 'keys')
+
 validUid = {}
 for key_name in keys.split(','):
+    print('key [%s]' % key_name)
     key_value = configParser.get('nfc-keys', key_name)
+    print('value [%s]' % key_value)
     validUid[key_name] = key_value
-
-#Timers
-timerWarning = None
-timerAlert = None
-
-def setTimers(channel):
-    timerWarning = Timer(5, callbackEscalade, args=[channel, 'warning'])
-    timerAlert = Timer(10, callbackEscalade, args=[channel, 'alert'])
-    timerWarning.start()
-    timerAlert.start()
-
-def callbackEscalade(channel, timerName):
-    print('Escalade ' + timerName)
-    if timerName == 'warning':
-        timerWarning = None
-    if timerName == 'alert':
-        timerAlert = None
-    alarm.sensorBreach()
-    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-
-def stop():
-    print('stop timers')
-    if timerWarning is not None:
-        print('stop warning')
-        timerWarning.cancel()
-    if timerAlert is not None:
-        print('stop alert')
-        timerAlert.cancel()
 
 def main_loop():
     while True:
@@ -264,36 +245,31 @@ def main_loop():
         if queue_sensors:
             with lock_sensors:
                 sensor = queue_sensors.popleft()
-
-                if alarm.isReady():
-                    if sensor == 'SENSOR_RISING':
-                        alarm.setOnline()
-                if alarm.isWatching():
-                    if sensor == 'SENSOR_FALLING':
+                if (alarm.currentState() == 'online'):
+                    if sensor == 'SENSOR_BREACH':
                         alarm.sensorBreach()
-                        setTimers(6)
-
-                lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                    elif sensor == 'SENSOR_ESCALADE':
+                        alarm.sensorBreach()
+                    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
         if queue_nfc:
             with lock_nfc:
-                cardUid = queue_nfc.popleft()
+                cardUid = queue_nfc.popleft().decode("utf-8")
+                print('CARD uid [%s]' % cardUid)
                 if cardUid in validUid.values():
+                    print ('REQ TOOGLE')
                     alarm.toggleState()
+                else :
+                    print ('NO VALID')
                 lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                #print('DISPLAY state [%s]' % alarm.currentState())
+                #print('DISPLAY status [%s]' % alarm.currentStatus())
                 #continue
         sleep(.9)
 
 
 # LCD
-#def __init__(self, address, lines, cols, backlight_pin, timeout):
-lcdAddress = int(configParser.get('lcd', 'address'), 16)
-lcdLines = int(configParser.get('lcd', 'lines'))
-lcdCols = int(configParser.get('lcd', 'cols'))
-lcdBacklightPin = int(configParser.get('lcd', 'backlight_pin'))
-lcdTimeout = int(configParser.get('lcd', 'backlight_auto_off'))
-
-lcdControl = LcdControl(address=lcdAddress, lines=lcdLines, cols=lcdCols, backlight_pin=lcdBacklightPin, timeout=lcdTimeout)
+lcdControl = LcdControl()
 lcdControl.display('Startup...')
 
 # Controls
@@ -311,6 +287,9 @@ lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 nfc = NfcReader(running, queue_nfc, lock_nfc)
 nfc_thread = threading.Thread(target=nfc.nfc_reader)
 nfc_thread.start()
+
+#Run mainloop instead of threading it
+#main_loop()
 
 #Main thread
 main_thread = threading.Thread(target=main_loop)
