@@ -12,3 +12,75 @@ https://www.adafruit.com/product/181
 
 I2C backpack
 https://www.adafruit.com/product/292
+
+== Rpi install
+
+Download raspbian jessie lite https://www.raspberrypi.org/downloads/raspbian/
+
+Write image to sd card using linux dd or win32diskimager (windows)
+
+== Rpi configuration
+
+Using sudo raspi-config, enable ssh, i2c, spi
+
+== Users
+
+Add your custom user and remove defalt pi user
+
+sudo adduser USER
+sudo userdel pi
+
+Then, add USER to required groups
+
+sudo adduser USER sudo
+sudo adduser USER gpio
+sudo adduser USER spi
+sudo adduser USER i2c
+
+== Install python tools
+
+TODO Some of these may not be required
+
+sudo apt-get update
+sudo apt-get install build-essential python-dev python-smbus python-pip
+sudo apt-get install -y python3 python3-pip python-dev
+
+== Create python3 virtualenv
+
+pip install virtualenv
+
+sudo apt-get install python3
+
+virtualenv -p /usr/bin/python3 py3env
+
+source py3env/bin/activate
+
+== Install libs in virtualenv
+
+=== GPIO
+
+pip3 install rpi.gpio
+
+=== ConfigParser
+
+pip install ConfigParser
+
+=== Customised CharLCD with backlight managment
+
+clone https://github.com/kemkem/Adafruit_Python_CharLCD.git
+cd Adafruit_Python_CharLCD
+git checkout i2c_backplate_backlight
+
+python setup.py install
+
+=== Others required libraries from Adafruit
+
+cd Adafruit_Python_GPIO
+python setup.py install
+
+cd Adafruit_Python_PN532
+python setup.py install
+
+== Install Flask
+
+pip install Flask
