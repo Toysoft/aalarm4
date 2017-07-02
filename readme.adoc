@@ -114,3 +114,59 @@ python setup.py install
 ----
 pip install Flask
 ----
+
+== Mail sending
+
+=== Install ssmtp
+
+[source,bash]
+----
+sudo apt-get install ssmtp
+----
+
+=== Configure
+
+Edit /etc/ssmtp/ssmtp.conf
+
+[source,text]
+----
+root=<GMAIL_USER>@gmail.com
+
+mailhub=smtp.gmail.com:587
+
+rewriteDomain=gmail.com
+
+hostname=HOSTNAME
+
+FromLineOverride=YES
+
+AuthUser=<GMAIL_USER>@gmail.com
+AuthPass=<GMAIL_PASSWORD>
+UseTLS=YES
+UseSTARTTLS=YES
+----
+
+Edit /etc/ssmtp/ssmtp.conf
+
+[source,text]
+----
+root=<GMAIL_USER>@gmail.com
+
+mailhub=smtp.gmail.com:587
+
+rewriteDomain=gmail.com
+
+hostname=HOSTNAME
+
+FromLineOverride=YES
+
+AuthUser=<GMAIL_USER>@gmail.com
+AuthPass=<GMAIL_PASSWORD>
+UseTLS=YES
+UseSTARTTLS=YES
+----
+
+[source,text]
+----
+root:<GMAIL_USER>@gmail.com:smtp.gmail.com:587
+----
