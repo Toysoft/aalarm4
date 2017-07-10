@@ -31,6 +31,8 @@ class LcdControl(object):
     gpio = None
     lcd = None
     currentMenu = None
+    timerBacklight = None
+    TIMEOUT_BACKLIGHT = 10
 
     def __init__(self):
         self.gpio = MCP.MCP23008(self.address)
@@ -40,6 +42,10 @@ class LcdControl(object):
         print('LCD [%s]' % message)
         self.lcd.clear()
         self.lcd.message(message)
+        self.lcd.backlightOn()
+        if not self.timerBacklight:
+            self.timerBacklight = Timer(self.TIMEOUT_BACKLIGHT,self.callBackBacklight)
+            self.timerBacklight.start()
 
     def displayState(self, state, status):
         self.display('State [' + state + ']\n' + 'Status [' + status + ']')
@@ -50,6 +56,10 @@ class LcdControl(object):
     def menuButton(self, button):
         if not self.currentMenu:
             self.displayMenu()
+
+    def callBackBacklight(self):
+        self.lcd.backlightOff()
+        self.timerBacklight = None
 
 
 class MenuControl(object):
@@ -187,9 +197,9 @@ class GpioSensor(object):
         #alarm.sensorBreach()
         #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
         if not self.timerWarning:
-            self.timerWarning = Timer(5,self.callbackEscalade,args=[channel, 'warning'])
+            self.timerWarning = Timer(self.TIMEOUT_WARNING,self.callbackEscalade,args=[channel, 'warning'])
             self.timerWarning.start()
-            self.timerAlert = Timer(10,self.callbackEscalade,args=[channel, 'alert'])
+            self.timerAlert = Timer(self.TIMEOUT_ALERT,self.callbackEscalade,args=[channel, 'alert'])
             self.timerAlert.start()
             with self.lock:
                 self .queue.append('SENSOR_BREACH')
