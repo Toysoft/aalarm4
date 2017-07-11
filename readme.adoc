@@ -23,6 +23,10 @@ Write image to sd card using linux dd or win32diskimager (windows)
 
 Using sudo raspi-config, enable ssh, i2c, spi
 
+== Third party
+
+install mpg123
+
 == Users
 
 Add your custom user and remove defalt pi user
@@ -41,6 +45,7 @@ sudo adduser USER sudo
 sudo adduser USER gpio
 sudo adduser USER spi
 sudo adduser USER i2c
+sudo adduser USER audio
 ----
 
 == Install python tools

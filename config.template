@@ -15,3 +15,12 @@ login=<DOMOTICZ REST LOGIN>
 password=<DOMOTICZ REST PASSWORD>
 sceneLeave=<DOMOTICZ URL TO CALL WHEN SET ONLINE>
 sceneEnter=<DOMOTICZ URL TO CALL WHEN SET OFFLINE>
+
+[mailer]
+recipient=<EMAIL RECIPIENT>
+sender=<EMAIL SENDER>
+subjectPrefix=<SUBJECT PREFIX>
+stmpHost=<SMTP HOST>
+stmpPort=<SMTP PORT>
+login=<SMTP LOGIN>
+password=<SMTP PASSWORD>
