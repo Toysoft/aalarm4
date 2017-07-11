@@ -24,6 +24,8 @@ import configparser
 import requests
 from requests.auth import HTTPBasicAuth
 
+import smtplib
+
 class LcdControl(object):
     address = 0x20
     lines = 16
@@ -258,14 +260,44 @@ configDomoticzPwd = configParser.get('domoticz', 'password')
 configDomoticzSceneLeaveUrl = configParser.get('domoticz', 'sceneLeave')
 configDomoticzSceneEnterUrl = configParser.get('domoticz', 'sceneEnter')
 
+mailerRecipient = configParser.get('mailer', 'recipient')
+mailerSender = configParser.get('mailer', 'sender')
+mailerSubjectPrefix = configParser.get('mailer', 'subjectPrefix')
+mailerStmpHost = configParser.get('mailer', 'stmpHost')
+mailerStmpPort = configParser.get('mailer', 'stmpPort')
+mailerLogin = configParser.get('mailer', 'login')
+mailerPassword = configParser.get('mailer', 'password')
+
+
 #sceneEnter="http://192.168.0.23:8080/json.htm?type=command&param=switchscene&idx=8&switchcmd=On";
 #scenePresenceOn="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=On";
 #scenePresenceOff="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=Off";
 
-def callDomoticz(url):
+def callDomoticz(subject, message):
     print(print('call [%s]' % url))
     response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
     print(response)
+
+def sendMail(subject, message):
+    server = smtplib.SMTP(mailerStmpHost, mailerStmpPort)
+    server.ehlo()
+    server.starttls()
+    server.login(mailerLogin, mailerPassword)
+
+    subject = mailerSubjectPrefix + " " + subject
+
+    BODY = '\r\n'.join(['To: %s' % mailerRecipient,
+                        'From: %s' % mailerSender,
+                        'Subject: %s' % subject,
+                        '', message])
+
+    try:
+        server.sendmail(mailerSender, [mailerRecipient], BODY)
+        print ('email sent')
+    except:
+        print ('error sending mail')
+
+    server.quit()
 
 def main_loop():
     while True:
