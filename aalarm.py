@@ -26,6 +26,11 @@ from requests.auth import HTTPBasicAuth
 
 import smtplib
 
+import subprocess
+import time
+import os
+import signal
+
 class LcdControl(object):
     address = 0x20
     lines = 16
@@ -97,6 +102,11 @@ class Alarm(object):
     state = False
     dStatusAlarm = {0: 'nominal', 1: 'breach', 2: 'warning', 3: 'alert'}
     status = 0
+    TIMEOUT_WARNING = 5
+    TIMEOUT_ALERT = 10
+    timerWarning = None
+    timerAlert = None
+
 
     def toggleState(self):
         print('Toggle before [%s]' % self.state)
@@ -105,10 +115,10 @@ class Alarm(object):
         if not self.state:
             print('Online')
             self.status = 0
-            callDomoticz(configDomoticzSceneLeaveUrl)
+            #callDomoticz(configDomoticzSceneLeaveUrl)
         else:
             print('Offline')
-            callDomoticz(configDomoticzSceneEnterUrl)
+            #callDomoticz(configDomoticzSceneEnterUrl)
 
     def setOnline(self):
         self.state = 1
@@ -116,14 +126,51 @@ class Alarm(object):
     def setOffline(self):
         self.state = 0
 
-    def sensorBreach(self):
+    def reportBreach(self):
+        self.escaladeState();
+        self.startTimers();
+
+    def startTimers(self):
+        if not self.timerWarning:
+            self.escaladeState();
+            self.timerWarning = Timer(self.TIMEOUT_WARNING,self.callbackEscalade,args=[channel, 'warning'])
+            self.timerWarning.start()
+            self.timerAlert = Timer(self.TIMEOUT_ALERT,self.callbackEscalade,args=[channel, 'alert'])
+            self.timerAlert.start()
+
+    def stopTimers(self):
+        print('stop timers')
+
+        if self.timerWarning is not None:
+            print('stop warning')
+            self.timerWarning.cancel()
+        if self.timerAlert is not None:
+            print('stop alert')
+            self.timerAlert.cancel()
+
+    def callbackEscalade(self, channel, timerName):
+        print('Escalade ' + timerName)
+        self.escaladeState();
+
+        if timerName == 'alert':
+            self.timerWarning = None
+            self.timerAlert = None
+        #print('escalade sensor', channel)
+        # with self.lock:
+        #     self.queue.append('SENSOR_ESCALADE')
+
+    def escaladeState(self):
         if self.state:
+            #breach
             if self.status == 0:
                 self.status = 1;
+            #warning
             elif self.status == 1:
                 self.status = 2;
+            #alert
             elif self.status == 2:
                 self.status = 3;
+            print('Escalade to state ' + self.currentStatus())
 
     def currentState(self):
         if self.state:
@@ -177,10 +224,6 @@ class NfcReader(object):
 class GpioSensor(object):
     PIN_SENSOR_1 = 6
     PIN_SENSOR_2 = 5
-    TIMEOUT_WARNING = 5
-    TIMEOUT_ALERT = 10
-    timerWarning = None
-    timerAlert = None
 
     running = None
     queue = None
@@ -198,35 +241,10 @@ class GpioSensor(object):
     def callbackSensor(self,channel):
         #alarm.sensorBreach()
         #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-        if not self.timerWarning:
-            self.timerWarning = Timer(self.TIMEOUT_WARNING,self.callbackEscalade,args=[channel, 'warning'])
-            self.timerWarning.start()
-            self.timerAlert = Timer(self.TIMEOUT_ALERT,self.callbackEscalade,args=[channel, 'alert'])
-            self.timerAlert.start()
-            with self.lock:
-                self .queue.append('SENSOR_BREACH')
-
-    def callbackEscalade(self, channel, timerName):
-        #alarm.sensorBreach()
-        #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-        print('Escalade ' + timerName)
-        if timerName == 'alert':
-            self.timerWarning = None
-            self.timerAlert = None
-
-        #print('escalade sensor', channel)
+        print("GPIO sensor breach detect")
         with self.lock:
-            self.queue.append('SENSOR_ESCALADE')
+            self.queue.append('SENSOR_BREACH')
 
-    def stop(self):
-        print('stop timers')
-
-        if self.timerWarning is not None:
-            print('stop warning')
-            self.timerWarning.cancel()
-        if self.timerAlert is not None:
-            print('stop alert')
-            self.timerAlert.cancel()
 
 #Threading queues and locks
 queue_sensors = deque()
@@ -268,6 +286,7 @@ mailerStmpPort = configParser.get('mailer', 'stmpPort')
 mailerLogin = configParser.get('mailer', 'login')
 mailerPassword = configParser.get('mailer', 'password')
 
+playerCommand = configParser.get('player', 'command')
 
 #sceneEnter="http://192.168.0.23:8080/json.htm?type=command&param=switchscene&idx=8&switchcmd=On";
 #scenePresenceOn="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=On";
@@ -299,6 +318,57 @@ def sendMail(subject, message):
 
     server.quit()
 
+def play():
+    # if not playerPid:
+    #print(playerCommand)
+    proc = subprocess.Popen(['/usr/bin/nohup','/usr/bin/mpg123','-@','/home/kemkem/playlist/list','-Z','&'])
+    playerPid = proc.pid
+    #print(playerPid)
+    # else:
+    #     print('player is already running')
+    return
+
+def stop():
+    # if playerPid:
+    print(playerPid)
+    os.kill(playerPid.pid, signal.SIGTERM)
+    playerPid = None
+    # else:
+    #     print('player is not running')
+
+
+class Player(object):
+    pid = None
+
+    def __init__(self):
+        print("Player init")
+
+    def play(self):
+        #self.pid = 1234
+        # if not playerPid:
+        #print(playerCommand)
+        proc = subprocess.Popen(['/usr/bin/nohup','/usr/bin/mpg123','-@','/home/kemkem/playlist/list','-Z','&'])
+        self.pid = proc.pid
+        #print(playerPid)
+        # else:
+        #     print('player is already running')
+
+    def stop(self):
+        # if playerPid:
+        print(self.pid)
+        os.kill(self.pid, signal.SIGTERM)
+        self.pid = None
+        # else:
+        #     print('player is not running')
+
+# player = Player()
+#
+# player.play()
+# time.sleep(5)
+# player.stop()
+#
+# quit()
+
 def main_loop():
     while True:
         if queue_buttons:
@@ -312,9 +382,9 @@ def main_loop():
                 sensor = queue_sensors.popleft()
                 if (alarm.currentState() == 'online'):
                     if sensor == 'SENSOR_BREACH':
-                        alarm.sensorBreach()
-                    elif sensor == 'SENSOR_ESCALADE':
-                        alarm.sensorBreach()
+                        alarm.reportBreach()
+                    # elif sensor == 'SENSOR_ESCALADE':
+                    #     alarm.sensorBreach()
                     lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
         if queue_nfc:
