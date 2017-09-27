@@ -107,6 +107,14 @@ class Alarm(object):
     timerWarning = None
     timerAlert = None
 
+    running = None
+    queue = None
+    lock = None
+
+    def __init__(self, running, queue, lock):
+        self.running = running
+        self.queue = queue
+        self.lock = lock
 
     def toggleState(self):
         print('Toggle before [%s]' % self.state)
@@ -125,17 +133,17 @@ class Alarm(object):
 
     def setOffline(self):
         self.state = 0
+        self.startTimers()
 
-    def reportBreach(self):
-        self.escaladeState();
-        self.startTimers();
+    def reportBreach(self, channel):
+        #todo use channel
+        self.escaladeState()
 
     def startTimers(self):
         if not self.timerWarning:
-            self.escaladeState();
-            self.timerWarning = Timer(self.TIMEOUT_WARNING,self.callbackEscalade,args=[channel, 'warning'])
+            self.timerWarning = Timer(self.TIMEOUT_WARNING,self.callbackEscalade,args=['warning'])
             self.timerWarning.start()
-            self.timerAlert = Timer(self.TIMEOUT_ALERT,self.callbackEscalade,args=[channel, 'alert'])
+            self.timerAlert = Timer(self.TIMEOUT_ALERT,self.callbackEscalade,args=['alert'])
             self.timerAlert.start()
 
     def stopTimers(self):
@@ -148,29 +156,31 @@ class Alarm(object):
             print('stop alert')
             self.timerAlert.cancel()
 
-    def callbackEscalade(self, channel, timerName):
-        print('Escalade ' + timerName)
-        self.escaladeState();
+    def callbackEscalade(self, timerName):
+        self.escaladeState()
 
-        if timerName == 'alert':
+        if timerName == 'warning':
+            print('reached warning, warning expired')
             self.timerWarning = None
+        if timerName == 'alert':
+            print('reached alert, alert expired')
             self.timerAlert = None
-        #print('escalade sensor', channel)
-        # with self.lock:
-        #     self.queue.append('SENSOR_ESCALADE')
 
     def escaladeState(self):
         if self.state:
             #breach
             if self.status == 0:
                 self.status = 1;
+                self.startTimers();
             #warning
             elif self.status == 1:
                 self.status = 2;
             #alert
             elif self.status == 2:
                 self.status = 3;
-            print('Escalade to state ' + self.currentStatus())
+            print('Escaladed to state ' + self.currentStatus())
+            with self.lock:
+                self.queue.append('SENSOR_ESCALADE')
 
     def currentState(self):
         if self.state:
@@ -241,12 +251,16 @@ class GpioSensor(object):
     def callbackSensor(self,channel):
         #alarm.sensorBreach()
         #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-        print("GPIO sensor breach detect")
+        print("GPIO sensor breach detect channel")
+        print(channel)
         with self.lock:
             self.queue.append('SENSOR_BREACH')
 
 
 #Threading queues and locks
+queue_alarm = deque()
+lock_alarm = threading.Lock()
+
 queue_sensors = deque()
 lock_sensors = threading.Lock()
 
@@ -380,12 +394,18 @@ def main_loop():
         if queue_sensors:
             with lock_sensors:
                 sensor = queue_sensors.popleft()
-                if (alarm.currentState() == 'online'):
-                    if sensor == 'SENSOR_BREACH':
-                        alarm.reportBreach()
-                    # elif sensor == 'SENSOR_ESCALADE':
-                    #     alarm.sensorBreach()
-                    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                #if (alarm.currentState() == 'online'):
+                if sensor == 'SENSOR_BREACH':
+                    #todo provide channel
+                    alarm.reportBreach('sensor')
+                # elif sensor == 'SENSOR_ESCALADE':
+                #     alarm.sensorBreach()
+                lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+
+        if queue_alarm:
+            with lock_alarm:
+                queue_alarm.popleft()
+                lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
         if queue_nfc:
             with lock_nfc:
@@ -411,7 +431,7 @@ lcdControl.display('Startup...')
 menuControl = MenuControl(running, queue_buttons, lock_buttons)
 
 # Alarm status
-alarm = Alarm()
+alarm = Alarm(running, queue_alarm, lock_alarm)
 
 # Alarm sensors
 sensors = GpioSensor(running, queue_sensors, lock_sensors)
