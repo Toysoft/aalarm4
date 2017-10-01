@@ -4,6 +4,7 @@ from collections import deque
 from threading import Timer
 from flask import Flask
 import time
+import re
 
 from LcdControl import LcdControl
 from MenuControl import MenuControl
@@ -16,8 +17,8 @@ from Alerts import Alerts
 class Alarm(object):
     #state is True (Online) or False (Offline)
     state = False
-    #status could be 0, 1, 2, 3
-    dStatusAlarm = {0: 'nominal', 1: 'breach', 2: 'warning', 3: 'alert'}
+    #status could be 0, 1, 2, 3, 4
+    dStatusAlarm = {0: 'idle', 1: 'nominal', 2: 'breach', 3: 'warning', 4: 'alert'}
     status = 0
 
     TIMEOUT_WARNING = 5
@@ -34,22 +35,30 @@ class Alarm(object):
         self.queue = queue
         self.lock = lock
 
+    def toggleStateForce(self):
+        print("Toggle state force")
+        self.state = not self.state
+        self.status = 1
+        self.stopTimers()
+
     def toggleState(self):
         print("Toggle state")
         self.state = not self.state
-        if not self.state:
-            print(' Set Online')
-            self.status = 0
-            self.stopTimers()
-            #callDomoticz(configDomoticzSceneLeaveUrl)
-        else:
-            print(' Set Offline')
-            self.stopTimers()
-            #callDomoticz(configDomoticzSceneEnterUrl)
+        self.status = 0
+        self.stopTimers()
 
     def reportBreach(self, channel):
         #todo use channel
         self.escaladeState()
+
+    def reportClose(self, channel):
+        #todo use channel
+        self.escaladeNominal()
+
+    def escaladeNominal(self):
+        if self.state:
+            if self.status == 0:
+                self.status = 1;
 
     def startTimers(self):
         if not self.timerWarning:
@@ -81,15 +90,15 @@ class Alarm(object):
     def escaladeState(self):
         if self.state:
             #breach
-            if self.status == 0:
-                self.status = 1;
+            if self.status == 1:
+                self.status = 2;
                 self.startTimers();
             #warning
-            elif self.status == 1:
-                self.status = 2;
-            #alert
             elif self.status == 2:
                 self.status = 3;
+            #alert
+            elif self.status == 3:
+                self.status = 4;
             print('Escaladed to state ' + self.currentStatus())
             with self.lock:
                 self.queue.append('SENSOR_ESCALADE')
@@ -133,13 +142,24 @@ if __name__ == '__main__':
 
             if queue_sensors:
                 with lock_sensors:
-                    sensor = queue_sensors.popleft()
-                    #if (alarm.currentState() == 'online'):
-                    if sensor == 'SENSOR_BREACH':
+                    message = queue_sensors.popleft()
+
+                    patternOpen = re.compile('SENSOR_DOOR:(\d+):OPEN')
+                    patternClose = re.compile('SENSOR_DOOR:(\d+):CLOSE')
+
+                    matchOpen = patternOpen.match(message);
+                    matchClose = patternClose.match(message);
+
+                    if patternOpen.match(message):
+                        sensor = matchOpen.group(1)
+                        alarm.reportBreach(sensor)
+                    elif patternClose.match(message):
+                        sensor = matchClose.group(1)
+                        alarm.reportClose(sensor)
+                        #print("CLOSE!!! " + sensor)
                         #todo provide channel
-                        alarm.reportBreach('sensor')
-                    # elif sensor == 'SENSOR_ESCALADE':
-                    #     alarm.sensorBreach()
+                        #alarm.reportBreach('sensor')
+
                     lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
             if queue_alarm:
@@ -196,7 +216,7 @@ if __name__ == '__main__':
 
     @app.route("/status/toggle")
     def toggle():
-        alarm.toggleState()
+        alarm.toggleStateForce()
         lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
         return 'ok'
 
