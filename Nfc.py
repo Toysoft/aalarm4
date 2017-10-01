@@ -1,5 +1,6 @@
 import Adafruit_PN532 as PN532
 from time import sleep
+import binascii
 
 class NfcReader(object):
     pn532 = None
