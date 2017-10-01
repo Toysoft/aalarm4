@@ -2,24 +2,22 @@ import binascii
 import sys
 import codecs
 
-import Adafruit_PN532 as PN532
-import Adafruit_GPIO.MCP230xx as MCP
-import Adafruit_CharLCD as LCD
+# import Adafruit_PN532 as PN532
+# import Adafruit_GPIO.MCP230xx as MCP
+# import Adafruit_CharLCD as LCD
+
 from time import sleep
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 
 import threading
 from collections import deque
-import Adafruit_PN532 as PN532
-
-import Adafruit_GPIO.MCP230xx as MCP
-import Adafruit_CharLCD as LCD
+# import Adafruit_PN532 as PN532
 
 from threading import Timer
 
 from flask import Flask
 
-import configparser
+
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -31,72 +29,11 @@ import time
 import os
 import signal
 
-class LcdControl(object):
-    address = 0x20
-    lines = 16
-    cols = 2
-    gpio = None
-    lcd = None
-    currentMenu = None
-    timerBacklight = None
-    TIMEOUT_BACKLIGHT = 10
-
-    def __init__(self):
-        self.gpio = MCP.MCP23008(self.address)
-        self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
-
-    def display(self, message):
-        print('LCD [%s]' % message)
-        self.lcd.clear()
-        self.lcd.message(message)
-        self.lcd.backlightOn()
-        if not self.timerBacklight:
-            self.timerBacklight = Timer(self.TIMEOUT_BACKLIGHT,self.callBackBacklight)
-            self.timerBacklight.start()
-
-    def displayState(self, state, status):
-        self.display('State [' + state + ']\n' + 'Status [' + status + ']')
-
-    def displayMenu(self):
-        self.display('Menu\nOptions')
-
-    def menuButton(self, button):
-        if not self.currentMenu:
-            self.displayMenu()
-
-    def callBackBacklight(self):
-        self.lcd.backlightOff()
-        self.timerBacklight = None
-
-
-class MenuControl(object):
-    PIN_BT_SELECT = 26
-    PIN_BT_UP = 19
-    PIN_BT_DWN = 13
-
-    def __init__(self, running, queue, lock):
-        self.running = running
-        self.queue = queue
-        self.lock = lock
-
-        GPIO.setup(self.PIN_BT_SELECT, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_BT_SELECT, GPIO.FALLING, callback=self.callbackBtSelect, bouncetime=500)
-        GPIO.setup(self.PIN_BT_UP, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_BT_UP, GPIO.FALLING, callback=self.callbackBtUp, bouncetime=500)
-        GPIO.setup(self.PIN_BT_DWN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_BT_DWN, GPIO.FALLING, callback=self.callbackBtDown, bouncetime=500)
-
-    def callbackBtSelect(self, channel):
-        with self.lock:
-            self.queue.append('SELECT')
-
-    def callbackBtUp(self, channel):
-        with self.lock:
-            self.queue.append('UP')
-
-    def callbackBtDown(self, channel):
-        with self.lock:
-            self.queue.append('DOWN')
+from LcdControl import LcdControl
+from MenuControl import MenuControl
+from Sensors import GpioSensor
+from Nfc import NfcReader
+from ConfigLoader import ConfigLoader
 
 class Alarm(object):
     state = False
@@ -191,70 +128,6 @@ class Alarm(object):
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
 
-class NfcReader(object):
-    pn532 = None
-
-    CS   = 18
-    MOSI = 23
-    MISO = 24
-    SCLK = 25
-
-    running = None
-    queue = None
-    lock = None
-
-
-    def __init__(self, running, queue, lock):
-        self.running = running
-        self.queue = queue
-        self.lock = lock
-
-        self.pn532 = PN532.PN532(cs=self.CS, sclk=self.SCLK, mosi=self.MOSI, miso=self.MISO)
-        self.pn532.begin()
-        ic, ver, rev, support = self.pn532.get_firmware_version()
-        print('Starting PN532 (firmware version: {0}.{1})'.format(ver, rev))
-        self.pn532.SAM_configuration()
-
-    def nfc_reader(self):
-        while True:
-            if not self.running:
-                return
-
-            uid = self.pn532.read_passive_target()
-
-            if uid is None:
-                continue
-
-            #cardUid = bytes(uid)
-            cardUid = binascii.hexlify(uid)
-            with self.lock:
-                self.queue.append(cardUid)
-            sleep(1)
-
-class GpioSensor(object):
-    PIN_SENSOR_1 = 6
-    PIN_SENSOR_2 = 5
-
-    running = None
-    queue = None
-    lock = None
-
-    def __init__(self, running, queue, lock):
-        self.running = running
-        self.queue = queue
-        self.lock = lock
-        GPIO.setup(self.PIN_SENSOR_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
-        GPIO.setup(self.PIN_SENSOR_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_SENSOR_2, GPIO.FALLING, callback=self.callbackSensor, bouncetime=500)
-
-    def callbackSensor(self,channel):
-        #alarm.sensorBreach()
-        #lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-        print("GPIO sensor breach detect channel")
-        print(channel)
-        with self.lock:
-            self.queue.append('SENSOR_BREACH')
 
 
 #Threading queues and locks
@@ -273,41 +146,11 @@ lock_buttons = threading.Lock()
 running = True
 
 #ConfigParser
-configParser = configparser.RawConfigParser()
-configFilePath = r'config'
-configParser.read(configFilePath)
-
-configNfckeys = configParser.get('nfc-keys', 'keys')
-
-validUid = {}
-for key_name in configNfckeys.split(','):
-    print('key [%s]' % key_name)
-    key_value = configParser.get('nfc-keys', key_name)
-    print('value [%s]' % key_value)
-    validUid[key_name] = key_value
-
-configDomoticzLogin = configParser.get('domoticz', 'login')
-configDomoticzPwd = configParser.get('domoticz', 'password')
-
-configDomoticzSceneLeaveUrl = configParser.get('domoticz', 'sceneLeave')
-configDomoticzSceneEnterUrl = configParser.get('domoticz', 'sceneEnter')
-
-mailerRecipient = configParser.get('mailer', 'recipient')
-mailerSender = configParser.get('mailer', 'sender')
-mailerSubjectPrefix = configParser.get('mailer', 'subjectPrefix')
-mailerStmpHost = configParser.get('mailer', 'stmpHost')
-mailerStmpPort = configParser.get('mailer', 'stmpPort')
-mailerLogin = configParser.get('mailer', 'login')
-mailerPassword = configParser.get('mailer', 'password')
-
-playerCommand = configParser.get('player', 'command')
-
-#sceneEnter="http://192.168.0.23:8080/json.htm?type=command&param=switchscene&idx=8&switchcmd=On";
-#scenePresenceOn="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=On";
-#scenePresenceOff="http://192.168.0.23:8080/json.htm?type=command&param=switchlight&idx=23&switchcmd=Off";
+config = ConfigLoader()
+validUid = config.getValidUid()
 
 def callDomoticz(subject, message):
-    print(print('call [%s]' % url))
+    #print(print('call [%s]' % url))
     response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
     print(response)
 
