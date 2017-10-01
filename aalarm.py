@@ -2,38 +2,25 @@ import binascii
 import sys
 import codecs
 
-# import Adafruit_PN532 as PN532
-# import Adafruit_GPIO.MCP230xx as MCP
-# import Adafruit_CharLCD as LCD
-
 from time import sleep
-#import RPi.GPIO as GPIO
 
 import threading
 from collections import deque
-# import Adafruit_PN532 as PN532
 
 from threading import Timer
 
 from flask import Flask
 
 
-
-import requests
-from requests.auth import HTTPBasicAuth
-
-import smtplib
-
-import subprocess
 import time
-import os
-import signal
 
 from LcdControl import LcdControl
 from MenuControl import MenuControl
 from Sensors import GpioSensor
 from Nfc import NfcReader
 from ConfigLoader import ConfigLoader
+from PlayControl import PlayControl
+from Alerts import Alerts
 
 class Alarm(object):
     state = False
@@ -148,83 +135,6 @@ running = True
 #ConfigParser
 config = ConfigLoader()
 validUid = config.getValidUid()
-
-def callDomoticz(subject, message):
-    #print(print('call [%s]' % url))
-    response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
-    print(response)
-
-def sendMail(subject, message):
-    server = smtplib.SMTP(mailerStmpHost, mailerStmpPort)
-    server.ehlo()
-    server.starttls()
-    server.login(mailerLogin, mailerPassword)
-
-    subject = mailerSubjectPrefix + " " + subject
-
-    BODY = '\r\n'.join(['To: %s' % mailerRecipient,
-                        'From: %s' % mailerSender,
-                        'Subject: %s' % subject,
-                        '', message])
-
-    try:
-        server.sendmail(mailerSender, [mailerRecipient], BODY)
-        print ('email sent')
-    except:
-        print ('error sending mail')
-
-    server.quit()
-
-def play():
-    # if not playerPid:
-    #print(playerCommand)
-    proc = subprocess.Popen(['/usr/bin/nohup','/usr/bin/mpg123','-@','/home/kemkem/playlist/list','-Z','&'])
-    playerPid = proc.pid
-    #print(playerPid)
-    # else:
-    #     print('player is already running')
-    return
-
-def stop():
-    # if playerPid:
-    print(playerPid)
-    os.kill(playerPid.pid, signal.SIGTERM)
-    playerPid = None
-    # else:
-    #     print('player is not running')
-
-
-class Player(object):
-    pid = None
-
-    def __init__(self):
-        print("Player init")
-
-    def play(self):
-        #self.pid = 1234
-        # if not playerPid:
-        #print(playerCommand)
-        proc = subprocess.Popen(['/usr/bin/nohup','/usr/bin/mpg123','-@','/home/kemkem/playlist/list','-Z','&'])
-        self.pid = proc.pid
-        #print(playerPid)
-        # else:
-        #     print('player is already running')
-
-    def stop(self):
-        # if playerPid:
-        print(self.pid)
-        os.kill(self.pid, signal.SIGTERM)
-        self.pid = None
-        # else:
-        #     print('player is not running')
-
-# player = Player()
-#
-# player.play()
-# time.sleep(5)
-# player.stop()
-#
-# quit()
 
 def main_loop():
     while True:
