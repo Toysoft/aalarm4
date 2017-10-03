@@ -12,7 +12,8 @@ from Sensors import GpioSensor
 from Nfc import NfcReader
 from ConfigLoader import ConfigLoader
 from PlayControl import PlayControl
-from Alerts import Alerts
+from MailNotification import MailNotification
+from Domoticz import Domoticz
 
 class Alarm(object):
     #state is True (Online) or False (Offline)
@@ -46,6 +47,8 @@ class Alarm(object):
         self.state = not self.state
         self.status = 0
         self.stopTimers()
+        with self.lock:
+            self.queue.append('STATE')
 
     def reportBreach(self, channel):
         #todo use channel
@@ -59,6 +62,8 @@ class Alarm(object):
         if self.state:
             if self.status == 0:
                 self.status = 1;
+            with self.lock:
+                self.queue.append('ESCALADE')
 
     def startTimers(self):
         if not self.timerWarning:
@@ -163,11 +168,16 @@ if __name__ == '__main__':
             if queue_alarm:
                 with lock_alarm:
                     message = queue_alarm.popleft()
+
                     if message == 'ESCALADE':
                         if alarm.currentStatus() == 'alert':
-                            alerts.sendMail('alert', 'alert has been triggered after a breach')
-
+                            mailer.sendMail('alert', 'alert has been triggered after a breach')
+                        if alarm.currentStatus() == 'nominal':
+                            domoticz.call(config.configDomoticz('sceneLeave'))
                         lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                    elif message == 'STATE':
+                        if alarm.currentState() == 'offline':
+                            domoticz.call(config.configDomoticz('sceneEnter'))
 
             if queue_nfc:
                 with lock_nfc:
@@ -189,7 +199,6 @@ if __name__ == '__main__':
 
     # Alarm status
     alarm = Alarm(running, queue_alarm, lock_alarm)
-    #alarm = Alarm()
 
     # Alarm sensors
     sensors = GpioSensor(running, queue_sensors, lock_sensors)
@@ -201,8 +210,11 @@ if __name__ == '__main__':
     nfc_thread = threading.Thread(target=nfc.nfc_reader)
     nfc_thread.start()
 
-    #Alerts
-    alerts = Alerts(config)
+    #Mailing system
+    mailer = MailNotification(config)
+
+    #Domoticz rest controls
+    domoticz = Domoticz(config)
 
     #Main thread
     main_thread = threading.Thread(target=main_loop)

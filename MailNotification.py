@@ -1,9 +1,9 @@
-import requests
-from requests.auth import HTTPBasicAuth
+# import requests
+# from requests.auth import HTTPBasicAuth
 
 import smtplib
 
-class Alerts(object):
+class MailNotification(object):
     smtpHost = None
     smtpPort = None
     login = None
@@ -13,7 +13,7 @@ class Alerts(object):
     sender = None
 
     def __init__(self, config):
-        print("Init alerts")
+        print("Init config")
         self.smtpHost = config.configMailer('stmpHost')
         self.smtpPort = config.configMailer('stmpPort')
         self.login = config.configMailer('login')
@@ -21,11 +21,6 @@ class Alerts(object):
         self.subjectPrefix = config.configMailer('subjectPrefix')
         self.recipient = config.configMailer('recipient')
         self.sender = config.configMailer('sender')
-
-    # def callDomoticz(self, subject, message):
-    #     #print('call [%s]' % url)
-    #     response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
-    #     print(response)
 
     def sendMail(self, subject, message):
         server = smtplib.SMTP(self.smtpHost, self.smtpPort)
