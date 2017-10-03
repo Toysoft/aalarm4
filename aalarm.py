@@ -101,7 +101,7 @@ class Alarm(object):
                 self.status = 4;
             print('Escaladed to state ' + self.currentStatus())
             with self.lock:
-                self.queue.append('SENSOR_ESCALADE')
+                self.queue.append('ESCALADE')
 
     def currentState(self):
         if self.state:
@@ -150,22 +150,24 @@ if __name__ == '__main__':
                     matchOpen = patternOpen.match(message);
                     matchClose = patternClose.match(message);
 
+                    #Breach is reported by a sensor
                     if patternOpen.match(message):
                         sensor = matchOpen.group(1)
                         alarm.reportBreach(sensor)
+                    #Sensor state changed to closed
                     elif patternClose.match(message):
                         sensor = matchClose.group(1)
                         alarm.reportClose(sensor)
-                        #print("CLOSE!!! " + sensor)
-                        #todo provide channel
-                        #alarm.reportBreach('sensor')
-
                     lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
             if queue_alarm:
                 with lock_alarm:
-                    queue_alarm.popleft()
-                    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                    message = queue_alarm.popleft()
+                    if message == 'ESCALADE':
+                        if alarm.currentStatus() == 'alert':
+                            alerts.sendMail('alert', 'alert has been triggered after a breach')
+
+                        lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
 
             if queue_nfc:
                 with lock_nfc:
@@ -176,11 +178,10 @@ if __name__ == '__main__':
                     else :
                         print ('NO VALID')
                     lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-                    #print('DISPLAY state [%s]' % alarm.currentState())
-                    #print('DISPLAY status [%s]' % alarm.currentStatus())
-                    #continue
             sleep(.9)
 
+    #config
+    config = ConfigLoader()
 
     # LCD
     lcdControl = LcdControl()
@@ -202,6 +203,9 @@ if __name__ == '__main__':
     nfc = NfcReader(running, queue_nfc, lock_nfc)
     nfc_thread = threading.Thread(target=nfc.nfc_reader)
     nfc_thread.start()
+
+    #Alerts
+    alerts = Alerts(config)
 
     #Main thread
     main_thread = threading.Thread(target=main_loop)
