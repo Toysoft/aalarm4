@@ -180,9 +180,6 @@ if __name__ == '__main__':
                     lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
             sleep(.9)
 
-    #config
-    config = ConfigLoader()
-
     # LCD
     lcdControl = LcdControl()
     lcdControl.display('Startup...')

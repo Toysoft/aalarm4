@@ -4,32 +4,44 @@ from requests.auth import HTTPBasicAuth
 import smtplib
 
 class Alerts(object):
-    config = None
+    smtpHost = None
+    smtpPort = None
+    login = None
+    password = None
+    subjectPrefix = None
+    recipient = None
+    sender = None
 
     def __init__(self, config):
         print("Init alerts")
-        self.config = config
+        self.smtpHost = config.configMailer('stmpHost')
+        self.smtpPort = config.configMailer('stmpPort')
+        self.login = config.configMailer('login')
+        self.password = config.configMailer('password')
+        self.subjectPrefix = config.configMailer('subjectPrefix')
+        self.recipient = config.configMailer('recipient')
+        self.sender = config.configMailer('sender')
 
-    def callDomoticz(self, subject, message):
-        #print('call [%s]' % url)
-        response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
-        print(response)
+    # def callDomoticz(self, subject, message):
+    #     #print('call [%s]' % url)
+    #     response = requests.get(url, auth=HTTPBasicAuth(configDomoticzLogin, configDomoticzPwd))
+    #     print(response)
 
     def sendMail(self, subject, message):
-        server = smtplib.SMTP(self.config.configMailer('stmpHost'), self.config.configMailer('stmpPort'))
+        server = smtplib.SMTP(self.smtpHost, self.smtpPort)
         server.ehlo()
         server.starttls()
-        server.login(self.config.configMailer('login'), self.config.configMailer('password'))
+        server.login(self.login, self.password)
 
-        subject = self.config.configMailer('subjectPrefix') + " " + subject
+        subject = self.subjectPrefix + " " + subject
 
-        BODY = '\r\n'.join(['To: %s' % self.config.configMailer('recipient'),
-                            'From: %s' % self.config.configMailer('sender'),
+        BODY = '\r\n'.join(['To: %s' % self.recipient,
+                            'From: %s' % self.sender,
                             'Subject: %s' % subject,
                             '', message])
 
         try:
-            server.sendmail(self.config.configMailer('sender'), [self.config.configMailer('recipient')], BODY)
+            server.sendmail(self.recipient, [self.recipient], BODY)
             print ('email sent')
         except:
             print ('error sending mail')

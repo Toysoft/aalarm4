@@ -44,5 +44,8 @@ class ConfigLoader(object):
     def configMailer(self, key):
         return self.mapConfig['mailer/' + key]
 
+    def configDomoticz(self, key):
+        return self.mapConfig['domoticz/' + key]
+
     def getValidUid(self):
         return self.validUid
