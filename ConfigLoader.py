@@ -21,6 +21,7 @@ class ConfigLoader(object):
             print('Config NFC value [%s]' % key_value)
             self.validUid[key_name] = key_value
 
+        self.addToMap('domoticz', 'enable')
         self.addToMap('domoticz', 'login')
         self.addToMap('domoticz', 'password')
 

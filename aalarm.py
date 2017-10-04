@@ -16,10 +16,7 @@ from MailNotification import MailNotification
 from Domoticz import Domoticz
 
 class Alarm(object):
-    #state is True (Online) or False (Offline)
-    state = False
-    #status could be 0, 1, 2, 3, 4
-    dStatusAlarm = {0: 'idle', 1: 'nominal', 2: 'breach', 3: 'warning', 4: 'alert'}
+    dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
     status = 0
 
     TIMEOUT_WARNING = 5
@@ -36,34 +33,30 @@ class Alarm(object):
         self.queue = queue
         self.lock = lock
 
-    def toggleStateForce(self):
-        print("Toggle state force")
-        self.state = not self.state
-        self.status = 1
-        self.stopTimers()
-
-    def toggleState(self):
+    def toggleState(self, force=False):
         print("Toggle state")
-        self.state = not self.state
-        self.status = 0
+        if force and self.status == 0:
+            self.status = 2
+        elif self.status == 0:
+            self.status = 1
+        else:
+            self.status = 0
         self.stopTimers()
         with self.lock:
             self.queue.append('STATE')
+
+    def toggleStateForce(self):
+        self.toggleState(True)
 
     def reportBreach(self, channel):
         #todo use channel
         self.escaladeState()
 
     def reportClose(self, channel):
-        #todo use channel
-        self.escaladeNominal()
-
-    def escaladeNominal(self):
-        if self.state:
-            if self.status == 0:
-                self.status = 1;
-            with self.lock:
-                self.queue.append('ESCALADE')
+        if self.status == 1:
+            self.status = 2;
+        with self.lock:
+            self.queue.append('ESCALADE')
 
     def startTimers(self):
         if not self.timerWarning:
@@ -93,26 +86,19 @@ class Alarm(object):
             self.timerAlert = None
 
     def escaladeState(self):
-        if self.state:
-            #breach
-            if self.status == 1:
-                self.status = 2;
-                self.startTimers();
-            #warning
-            elif self.status == 2:
-                self.status = 3;
-            #alert
-            elif self.status == 3:
-                self.status = 4;
-            print('Escaladed to state ' + self.currentStatus())
-            with self.lock:
-                self.queue.append('ESCALADE')
-
-    def currentState(self):
-        if self.state:
-            return 'online'
-        else:
-            return 'offline'
+        #breach
+        if self.status == 2:
+            self.status = 3;
+            self.startTimers();
+        #warning
+        elif self.status == 3:
+            self.status = 4;
+        #alert
+        elif self.status == 4:
+            self.status = 5;
+        print('Escaladed to state ' + self.currentStatus())
+        with self.lock:
+            self.queue.append('ESCALADE')
 
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
@@ -138,6 +124,7 @@ if __name__ == '__main__':
     validUid = config.getValidUid()
 
     def main_loop():
+        lcdControl.displayState(alarm.currentStatus())
         while True:
             if queue_buttons:
                 with lock_buttons:
@@ -163,21 +150,20 @@ if __name__ == '__main__':
                     elif patternClose.match(message):
                         sensor = matchClose.group(1)
                         alarm.reportClose(sensor)
-                    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                    lcdControl.displayState(alarm.currentStatus())
 
             if queue_alarm:
                 with lock_alarm:
                     message = queue_alarm.popleft()
 
-                    if message == 'ESCALADE':
-                        if alarm.currentStatus() == 'alert':
-                            mailer.sendMail('alert', 'alert has been triggered after a breach')
-                        if alarm.currentStatus() == 'nominal':
-                            domoticz.call(config.configDomoticz('sceneLeave'))
-                        lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
-                    elif message == 'STATE':
-                        if alarm.currentState() == 'offline':
-                            domoticz.call(config.configDomoticz('sceneEnter'))
+                    if alarm.currentStatus() == 'alert':
+                        mailer.sendMail('alert', 'alert has been triggered after a breach')
+                    if alarm.currentStatus() == 'online':
+                        domoticz.call(config.configDomoticz('sceneLeave'))
+                    if alarm.currentStatus() == 'offline':
+                        domoticz.call(config.configDomoticz('sceneEnter'))
+
+                    lcdControl.displayState(alarm.currentStatus())
 
             if queue_nfc:
                 with lock_nfc:
@@ -187,7 +173,7 @@ if __name__ == '__main__':
                         alarm.toggleState()
                     else :
                         print ('NO VALID')
-                    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+                    lcdControl.displayState(alarm.currentStatus())
             sleep(.9)
 
     # LCD
@@ -203,7 +189,7 @@ if __name__ == '__main__':
     # Alarm sensors
     sensors = GpioSensor(running, queue_sensors, lock_sensors)
 
-    lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+    #lcdControl.displayState(alarm.currentStatus())
 
     # NFC Thread
     nfc = NfcReader(running, queue_nfc, lock_nfc)
@@ -225,12 +211,12 @@ if __name__ == '__main__':
 
     @app.route("/status")
     def status():
-        return alarm.currentState() + ":" + alarm.currentStatus()
+        return alarm.currentStatus()
 
     @app.route("/status/toggle")
     def toggle():
         alarm.toggleStateForce()
-        lcdControl.displayState(alarm.currentState(), alarm.currentStatus())
+        lcdControl.displayState(alarm.currentStatus())
         return 'ok'
 
     app.run()

@@ -25,8 +25,8 @@ class LcdControl(object):
             self.timerBacklight = Timer(self.TIMEOUT_BACKLIGHT,self.callBackBacklight)
             self.timerBacklight.start()
 
-    def displayState(self, state, status):
-        self.display('State [' + state + ']\n' + 'Status [' + status + ']')
+    def displayState(self, status):
+        self.display('Status [' + status + ']')
 
     def displayMenu(self):
         self.display('Menu\nOptions')
