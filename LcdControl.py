@@ -1,8 +1,9 @@
 import Adafruit_GPIO.MCP230xx as MCP
 import Adafruit_CharLCD as LCD
 from threading import Timer
+from AlarmService import AlarmService
 
-class LcdControl(object):
+class LcdControl(AlarmService):
     address = 0x20
     lines = 16
     cols = 2
@@ -14,11 +15,12 @@ class LcdControl(object):
     lastStatus = None
 
     def __init__(self):
+        self.className = "Lcd"
         self.gpio = MCP.MCP23008(self.address)
         self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
 
     def display(self, message):
-        print('LCD [%s]' % message)
+        self.debug('LCD [%s]' % message)
         self.lcd.clear()
         self.lcd.message(message)
         self.lcd.backlightOn()

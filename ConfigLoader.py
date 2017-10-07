@@ -1,11 +1,13 @@
 import configparser
+from AlarmService import AlarmService
 
-class ConfigLoader(object):
+class ConfigLoader(AlarmService):
     validUid = None
     mapConfig = None
     configParser = None
 
     def __init__(self):
+        self.className = "Config"
         self.configParser = configparser.RawConfigParser()
         configFilePath = r'config'
         self.configParser.read(configFilePath)
@@ -16,9 +18,9 @@ class ConfigLoader(object):
         self.mapConfig = {}
 
         for key_name in configNfckeys.split(','):
-            print('Config NFC key [%s]' % key_name)
+            self.debug('Config NFC key [%s]' % key_name)
             key_value = self.configParser.get('nfc-keys', key_name)
-            print('Config NFC value [%s]' % key_value)
+            self.debug('Config NFC value [%s]' % key_value)
             self.validUid[key_name] = key_value
 
         self.addToMap('domoticz', 'enable')

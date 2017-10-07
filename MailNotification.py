@@ -1,6 +1,7 @@
 import smtplib
+from AlarmService import AlarmService
 
-class MailNotification(object):
+class MailNotification(AlarmService):
     smtpHost = None
     smtpPort = None
     login = None
@@ -10,6 +11,7 @@ class MailNotification(object):
     sender = None
 
     def __init__(self, config):
+        self.className = "Mailer"
         self.smtpHost = config.configMailer('stmpHost')
         self.smtpPort = config.configMailer('stmpPort')
         self.login = config.configMailer('login')
@@ -33,8 +35,8 @@ class MailNotification(object):
 
         try:
             server.sendmail(self.recipient, [self.recipient], BODY)
-            print ('email sent')
+            self.debug('Email sent')
         except:
-            print ('error sending mail')
+            self.debug('Error sending mail')
 
         server.quit()

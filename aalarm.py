@@ -15,7 +15,9 @@ from PlayControl import PlayControl
 from MailNotification import MailNotification
 from Domoticz import Domoticz
 
-class Alarm(object):
+from AlarmService import AlarmService
+
+class Alarm(AlarmService):
     dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
     status = 0
 
@@ -29,12 +31,13 @@ class Alarm(object):
     lock = None
 
     def __init__(self, running, queue, lock):
+        self.className = "Alarm"
         self.running = running
         self.queue = queue
         self.lock = lock
 
     def toggleState(self, force=False):
-        print("Toggle state")
+        self.debug("Toggle state")
         if force and self.status == 0:
             self.status = 2
         elif self.status == 0:
@@ -66,23 +69,23 @@ class Alarm(object):
             self.timerAlert.start()
 
     def stopTimers(self):
-        print('stop timers')
+        self.debug('Stop timers')
 
         if self.timerWarning is not None:
-            print(' stop warning')
+            self.debug('Stop warning')
             self.timerWarning.cancel()
         if self.timerAlert is not None:
-            print(' stop alert')
+            self.debug('Stop alert')
             self.timerAlert.cancel()
 
     def callbackEscalade(self, timerName):
         self.escaladeState()
 
         if timerName == 'warning':
-            print('reached warning, warning expired')
+            self.debug('Reached warning, warning expired')
             self.timerWarning = None
         if timerName == 'alert':
-            print('reached alert, alert expired')
+            self.debug('Reached alert, alert expired')
             self.timerAlert = None
 
     def escaladeState(self):
@@ -96,7 +99,7 @@ class Alarm(object):
         #alert
         elif self.status == 4:
             self.status = 5;
-        print('Escaladed to state ' + self.currentStatus())
+        self.debug('Escaladed to state ' + self.currentStatus())
         with self.lock:
             self.queue.append('ESCALADE')
 
@@ -123,19 +126,22 @@ if __name__ == '__main__':
     config = ConfigLoader()
     validUid = config.getValidUid()
 
+    service = AlarmService()
+    service.setClassName("Main")
+
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
         while True:
             if queue_buttons:
                 with lock_buttons:
-                    print("BT EVENT")
+                    service.debug("Event : button")
                     button = queue_buttons.popleft()
-                    print('button ' + button)
+                    service.debug('button ' + button)
                     lcdControl.menuButton(button)
 
             if queue_sensors:
                 with lock_sensors:
-                    print("SENSOR EVENT")
+                    service.debug("Event : sensor")
                     message = queue_sensors.popleft()
 
                     patternOpen = re.compile('SENSOR_DOOR:(\d+):OPEN')
@@ -156,7 +162,7 @@ if __name__ == '__main__':
 
             if queue_alarm:
                 with lock_alarm:
-                    print("ALARM EVENT")
+                    service.debug("Event : alarm")
                     message = queue_alarm.popleft()
 
                     if alarm.currentStatus() == 'alert':
@@ -170,13 +176,14 @@ if __name__ == '__main__':
 
             if queue_nfc:
                 with lock_nfc:
-                    print("NFC EVENT")
+                    service.debug("Event : nfc")
                     cardUid = queue_nfc.popleft().decode("utf-8")
-                    print('CARD uid [%s]' % cardUid)
+                    service.debug('Card uid [%s]' % cardUid)
                     if cardUid in validUid.values():
+                        service.debug('Valid uid')
                         alarm.toggleState()
                     else :
-                        print ('NO VALID')
+                        service.debug('Unrecognized uid')
                     lcdControl.displayState(alarm.currentStatus())
             sleep(.9)
 

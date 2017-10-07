@@ -1,11 +1,13 @@
 import RPi.GPIO as GPIO
+from AlarmService import AlarmService
 
-class MenuControl(object):
+class MenuControl(AlarmService):
     PIN_BT_SELECT = 26
     PIN_BT_UP = 19
     PIN_BT_DWN = 13
 
     def __init__(self, running, queue, lock):
+        self.className = "Menu"
         self.running = running
         self.queue = queue
         self.lock = lock

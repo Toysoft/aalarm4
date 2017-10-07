@@ -1,8 +1,9 @@
 import Adafruit_PN532 as PN532
 from time import sleep
 import binascii
+from AlarmService import AlarmService
 
-class NfcReader(object):
+class NfcReader(AlarmService):
     pn532 = None
 
     CS   = 18
@@ -14,8 +15,8 @@ class NfcReader(object):
     queue = None
     lock = None
 
-
     def __init__(self, running, queue, lock):
+        self.className = "Nfc"
         self.running = running
         self.queue = queue
         self.lock = lock
@@ -23,7 +24,7 @@ class NfcReader(object):
         self.pn532 = PN532.PN532(cs=self.CS, sclk=self.SCLK, mosi=self.MOSI, miso=self.MISO)
         self.pn532.begin()
         ic, ver, rev, support = self.pn532.get_firmware_version()
-        print('Starting PN532 (firmware version: {0}.{1})'.format(ver, rev))
+        self.debug('Starting PN532 (firmware version: {0}.{1})'.format(ver, rev))
         self.pn532.SAM_configuration()
 
     def nfc_reader(self):
@@ -36,7 +37,6 @@ class NfcReader(object):
             if uid is None:
                 continue
 
-            #cardUid = bytes(uid)
             cardUid = binascii.hexlify(uid)
             with self.lock:
                 self.queue.append(cardUid)
