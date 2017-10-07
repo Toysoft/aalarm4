@@ -128,12 +128,14 @@ if __name__ == '__main__':
         while True:
             if queue_buttons:
                 with lock_buttons:
+                    print("BT EVENT")
                     button = queue_buttons.popleft()
                     print('button ' + button)
                     lcdControl.menuButton(button)
 
             if queue_sensors:
                 with lock_sensors:
+                    print("SENSOR EVENT")
                     message = queue_sensors.popleft()
 
                     patternOpen = re.compile('SENSOR_DOOR:(\d+):OPEN')
@@ -154,6 +156,7 @@ if __name__ == '__main__':
 
             if queue_alarm:
                 with lock_alarm:
+                    print("ALARM EVENT")
                     message = queue_alarm.popleft()
 
                     if alarm.currentStatus() == 'alert':
@@ -167,6 +170,7 @@ if __name__ == '__main__':
 
             if queue_nfc:
                 with lock_nfc:
+                    print("NFC EVENT")
                     cardUid = queue_nfc.popleft().decode("utf-8")
                     print('CARD uid [%s]' % cardUid)
                     if cardUid in validUid.values():

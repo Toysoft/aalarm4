@@ -11,6 +11,7 @@ class LcdControl(object):
     currentMenu = None
     timerBacklight = None
     TIMEOUT_BACKLIGHT = 10
+    lastStatus = None
 
     def __init__(self):
         self.gpio = MCP.MCP23008(self.address)
@@ -26,7 +27,11 @@ class LcdControl(object):
             self.timerBacklight.start()
 
     def displayState(self, status):
+        if self.lastStatus:
+            if status == self.lastStatus:
+                return
         self.display('Status [' + status + ']')
+        self.lastStatus = status
 
     def displayMenu(self):
         self.display('Menu\nOptions')
