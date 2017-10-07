@@ -10,7 +10,6 @@ class MailNotification(object):
     sender = None
 
     def __init__(self, config):
-        print("Init config")
         self.smtpHost = config.configMailer('stmpHost')
         self.smtpPort = config.configMailer('stmpPort')
         self.login = config.configMailer('login')

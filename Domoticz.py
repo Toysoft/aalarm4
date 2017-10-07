@@ -7,7 +7,6 @@ class Domoticz(object):
     enable = False
 
     def __init__(self, config):
-        print("Init config")
         self.login = config.configDomoticz('login')
         self.password = config.configDomoticz('password')
         if config.configDomoticz('enable') == 'yes':
