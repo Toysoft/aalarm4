@@ -40,6 +40,9 @@ class ConfigLoader(AlarmService):
 
         self.addToMap('player', 'command')
 
+        self.addToMap('server', 'adminLogin')
+        self.addToMap('server', 'adminPassword')
+
     def addToMap(self, group, key):
         value = self.configParser.get(group, key)
         self.mapConfig[group + '/' + key] = value
@@ -49,6 +52,9 @@ class ConfigLoader(AlarmService):
 
     def configDomoticz(self, key):
         return self.mapConfig['domoticz/' + key]
+
+    def configServer(self, key):
+        return self.mapConfig['server/' + key]
 
     def getValidUid(self):
         return self.validUid
