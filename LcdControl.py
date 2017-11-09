@@ -20,13 +20,17 @@ class LcdControl(AlarmService):
         self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
 
     def display(self, message):
-        self.debug('LCD [%s]' % message)
+        self.debug('\n------------\n%s\n------------\n' % message)
         self.lcd.clear()
         self.lcd.message(message)
         self.lcd.backlightOn()
         if not self.timerBacklight:
             self.timerBacklight = Timer(self.TIMEOUT_BACKLIGHT,self.callBackBacklight)
             self.timerBacklight.start()
+
+    def displayStateForced(self, status):
+        self.display('Status [' + status + ']')
+        self.lastStatus = status
 
     def displayState(self, status):
         if self.lastStatus:

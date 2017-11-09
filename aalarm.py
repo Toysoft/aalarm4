@@ -132,15 +132,22 @@ if __name__ == '__main__':
     service = AlarmService()
     service.setClassName("Main")
 
+
+
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
         while True:
             if queue_buttons:
                 with lock_buttons:
-                    service.debug("Event : button")
                     button = queue_buttons.popleft()
-                    service.debug('button ' + button)
-                    lcdControl.menuButton(button)
+                    if button == "MENU:exit":
+                        service.debug("Exit from menu")
+                        lcdControl.displayStateForced(alarm.currentStatus())
+                    elif button == "MENU:register":
+                        service.debug("Register a new NFC uid")
+                        nfc.keepNextUid()
+                    else:
+                        lcdControl.display(menuControl.currentMenu())
 
             if queue_sensors:
                 with lock_sensors:
@@ -180,9 +187,12 @@ if __name__ == '__main__':
             if queue_nfc:
                 with lock_nfc:
                     service.debug("Event : nfc")
-                    cardUid = queue_nfc.popleft().decode("utf-8")
+                    cardUid = queue_nfc.popleft()#.decode("utf-8")
                     service.debug('Card uid [%s]' % cardUid)
                     if cardUid in validUid.values():
+                        # fileUidList = open("./uids",'w')
+                        # fileUidList.write(cardUid)
+                        # fileUidList.close()
                         service.debug('Valid uid')
                         alarm.toggleState()
                     else :

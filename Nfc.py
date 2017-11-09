@@ -15,6 +15,8 @@ class NfcReader(AlarmService):
     queue = None
     lock = None
 
+    keepNext = False
+
     def __init__(self, running, queue, lock):
         self.className = "Nfc"
         self.running = running
@@ -37,7 +39,17 @@ class NfcReader(AlarmService):
             if uid is None:
                 continue
 
-            cardUid = binascii.hexlify(uid)
+            cardUid = binascii.hexlify(uid).decode("utf-8")
+
+            self.debug("Read uid " + cardUid)
+
+            if self.keepNext == True:
+                self.keepNext = False
+                self.debug("Keep uid " + cardUid)
+
             with self.lock:
                 self.queue.append(cardUid)
             sleep(1)
+
+    def keepNextUid(self):
+        keepNext = True
