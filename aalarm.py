@@ -132,7 +132,8 @@ if __name__ == '__main__':
     service = AlarmService()
     service.setClassName("Main")
 
-
+    registerUidAuth = False
+    registerUidAddNext = False
 
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
@@ -145,7 +146,9 @@ if __name__ == '__main__':
                         lcdControl.displayStateForced(alarm.currentStatus())
                     elif button == "MENU:register":
                         service.debug("Register a new NFC uid")
-                        nfc.keepNextUid()
+                        #nfc.keepNextUid()
+                        registerUidAuth = True
+                        registerUidAddNext = False
                     else:
                         lcdControl.display(menuControl.currentMenu())
 
@@ -190,11 +193,20 @@ if __name__ == '__main__':
                     cardUid = queue_nfc.popleft()#.decode("utf-8")
                     service.debug('Card uid [%s]' % cardUid)
                     if cardUid in validUid.values():
-                        # fileUidList = open("./uids",'w')
-                        # fileUidList.write(cardUid)
-                        # fileUidList.close()
-                        service.debug('Valid uid')
-                        alarm.toggleState()
+                        if registerUidAuth :
+                            lcdControl.display("Register master key ok")
+                            registerUidAuth = False
+                            registerUidAddNext = True
+                        elif registerUidAddNext :
+                            lcdControl.display("Added new uid")
+                            registerUidAuth = False
+                            registerUidAddNext = False
+                            fileUidList = open("./uids",'w')
+                            fileUidList.write(cardUid)
+                            fileUidList.close()
+                        else :
+                            service.debug('Valid uid')
+                            alarm.toggleState()
                     else :
                         service.debug('Unrecognized uid')
                     lcdControl.displayState(alarm.currentStatus())
