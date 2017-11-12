@@ -9,10 +9,11 @@ class PlayControl(AlarmService):
     def __init__(self, config):
         self.className = "Player"
 
-    def play(self):
+    def start(self):
         #self.pid = 1234
         # if not playerPid:
         #print(playerCommand)
+        self.debug("Start playing music")
         proc = subprocess.Popen(['/usr/bin/nohup','/usr/bin/mpg123','-@','/home/kemkem/playlist/list','-Z','&'])
         self.pid = proc.pid
         #print(playerPid)
@@ -21,7 +22,8 @@ class PlayControl(AlarmService):
 
     def stop(self):
         # if playerPid:
-        print(self.pid)
+        self.debug("Stop playing music")
+        #print(self.pid)
         os.kill(self.pid, signal.SIGTERM)
         self.pid = None
         # else:

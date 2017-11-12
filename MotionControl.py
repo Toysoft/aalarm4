@@ -7,8 +7,10 @@ class MotionControl(AlarmService):
     def __init__(self, config):
         self.className = "Motion"
 
-    def play(self):
-        proc = subprocess.Popen(['service', 'motion', 'start'])
+    def start(self):
+        self.debug("Start motion service")
+        proc = subprocess.Popen(['sudo', 'service', 'motion', 'start'])
 
     def stop(self):
-        proc = subprocess.Popen(['service', 'motion', 'stop'])
+        self.debug("Stop motion service")
+        proc = subprocess.Popen(['sudo', 'service', 'motion', 'stop'])

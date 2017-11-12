@@ -52,11 +52,13 @@ class Alarm(AlarmService):
 
     def onlineAction(self):
         self.debug("Run Online actions")
-        self.playControl.play()
+        self.playControl.start()
+        self.motionControl.start()
 
     def offlineAction(self):
         self.debug("Run Offline actions")
         self.playControl.stop()
+        self.motionControl.stop()
 
     def toggleState(self, force=False):
         self.debug("Toggle state")
