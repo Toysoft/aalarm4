@@ -1,12 +1,13 @@
 import subprocess
 import os
 import signal
+from AlarmService import AlarmService
 
-class PlayControl(object):
+class PlayControl(AlarmService):
     pid = None
 
-    def __init__(self):
-        print("Player init")
+    def __init__(self, config):
+        self.className = "Player"
 
     def play(self):
         #self.pid = 1234

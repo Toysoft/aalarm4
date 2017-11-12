@@ -12,6 +12,7 @@ from Sensors import GpioSensor
 from Nfc import NfcReader
 from ConfigLoader import ConfigLoader
 from PlayControl import PlayControl
+from MotionControl import MotionControl
 from MailNotification import MailNotification
 from Domoticz import Domoticz
 
@@ -35,20 +36,40 @@ class Alarm(AlarmService):
     queue = None
     lock = None
 
-    def __init__(self, running, queue, lock):
+    #PlayControl
+    playControl = None
+
+    #MotionControl
+    motionControl = None
+
+    def __init__(self, config, running, queue, lock):
         self.className = "Alarm"
         self.running = running
         self.queue = queue
         self.lock = lock
+        self.playControl = PlayControl(config)
+        self.motionControl = MotionControl(config)
+
+    def onlineAction(self):
+        self.debug("Run Online actions")
+        self.playControl.play()
+
+    def offlineAction(self):
+        self.debug("Run Offline actions")
+        self.playControl.stop()
 
     def toggleState(self, force=False):
         self.debug("Toggle state")
+        #forced required online
         if force and self.status == 0:
             self.status = 2
+        #idle
         elif self.status == 0:
             self.status = 1
+        #offline
         else:
             self.status = 0
+            self.offlineAction()
         self.stopTimers()
         with self.lock:
             self.queue.append('STATE')
@@ -61,8 +82,10 @@ class Alarm(AlarmService):
         self.escaladeState()
 
     def reportClose(self, channel):
+        #online
         if self.status == 1:
             self.status = 2;
+            self.onlineAction()
         with self.lock:
             self.queue.append('ESCALADE')
 
@@ -235,7 +258,7 @@ if __name__ == '__main__':
     menuControl = MenuControl(running, queue_buttons, lock_buttons)
 
     # Alarm status
-    alarm = Alarm(running, queue_alarm, lock_alarm)
+    alarm = Alarm(running, config, queue_alarm, lock_alarm)
 
     # Alarm sensors
     sensors = GpioSensor(running, queue_sensors, lock_sensors)
@@ -252,6 +275,7 @@ if __name__ == '__main__':
 
     #Domoticz rest controls
     domoticz = Domoticz(config)
+
 
     #Main thread
     main_thread = threading.Thread(target=main_loop)
