@@ -43,6 +43,10 @@ class ConfigLoader(AlarmService):
         self.addToMap('server', 'adminLogin')
         self.addToMap('server', 'adminPassword')
 
+        self.addToMap('uibackend', 'url')
+        self.addToMap('uibackend', 'login')
+        self.addToMap('uibackend', 'password')
+
     def addToMap(self, group, key):
         value = self.configParser.get(group, key)
         self.mapConfig[group + '/' + key] = value
@@ -55,6 +59,9 @@ class ConfigLoader(AlarmService):
 
     def configServer(self, key):
         return self.mapConfig['server/' + key]
+
+    def configUiBackend(self, key):
+        return self.mapConfig['uibackend/' + key]
 
     def getValidUid(self):
         return self.validUid

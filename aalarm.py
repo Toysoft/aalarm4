@@ -21,7 +21,9 @@ from AlarmService import AlarmService
 from functools import wraps
 from flask import request, Response
 
+#REST calls
 import requests
+from requests.auth import HTTPBasicAuth
 
 class Alarm(AlarmService):
     dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
@@ -162,13 +164,17 @@ if __name__ == '__main__':
     registerUidAuth = False
     registerUidAddNext = False
 
+    backendUrl = config.configUiBackend("url")
+    backendLogin = config.configUiBackend("login")
+    backendPassword = config.configUiBackend("password")
+
     def reportSensor(sensor, event):
-        url = 'http://192.168.0.11:8080/eventSensor?sensor=' + sensor + '&event=' + event
-        response = requests.get(url)
+        url = backendUrl + '/event/sensor?sensor=' + sensor + '&event=' + event
+        response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
 
     def reportState(state):
-        url = 'http://192.168.0.11:8080/eventState?state=' + state
-        response = requests.get(url)
+        url = backendUrl + '/event/state?state=' + state
+        response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
 
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
