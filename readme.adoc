@@ -121,3 +121,6 @@ pip install Flask
 ----
 
 == Mail sending
+
+== Motion
+/etc/default/motion start_motion_daemon=yes

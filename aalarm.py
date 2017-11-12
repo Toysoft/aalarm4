@@ -20,6 +20,8 @@ from AlarmService import AlarmService
 from functools import wraps
 from flask import request, Response
 
+import requests
+
 class Alarm(AlarmService):
     dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
     status = 0
@@ -135,6 +137,14 @@ if __name__ == '__main__':
     registerUidAuth = False
     registerUidAddNext = False
 
+    def reportSensor(sensor, event):
+        url = 'http://192.168.0.11:8080/eventSensor?sensor=' + sensor + '&event=' + event
+        response = requests.get(url)
+
+    def reportState(state):
+        url = 'http://192.168.0.11:8080/eventState?state=' + state
+        response = requests.get(url)
+
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
         while True:
@@ -167,10 +177,12 @@ if __name__ == '__main__':
                     if patternOpen.match(message):
                         sensor = matchOpen.group(1)
                         alarm.reportBreach(sensor)
+                        reportSensor('door', 'open')
                     #Sensor state changed to closed
                     elif patternClose.match(message):
                         sensor = matchClose.group(1)
                         alarm.reportClose(sensor)
+                        reportSensor('door', 'close')
                     lcdControl.displayState(alarm.currentStatus())
 
             if queue_alarm:
@@ -180,12 +192,15 @@ if __name__ == '__main__':
 
                     if alarm.currentStatus() == 'alert':
                         mailer.sendMail('alert', 'alert has been triggered after a breach')
-                    if alarm.currentStatus() == 'online':
+                    elif alarm.currentStatus() == 'online':
                         domoticz.call(config.configDomoticz('sceneLeave'))
-                    if alarm.currentStatus() == 'offline':
+                    elif alarm.currentStatus() == 'offline':
                         domoticz.call(config.configDomoticz('sceneEnter'))
-
+                    else :
+                        service.debug("Event : nothing to do")
                     lcdControl.displayState(alarm.currentStatus())
+                    reportState(alarm.currentStatus())
+
 
             if queue_nfc:
                 with lock_nfc:
@@ -193,20 +208,20 @@ if __name__ == '__main__':
                     cardUid = queue_nfc.popleft()#.decode("utf-8")
                     service.debug('Card uid [%s]' % cardUid)
                     if cardUid in validUid.values():
-                        if registerUidAuth :
-                            lcdControl.display("Register master key ok")
-                            registerUidAuth = False
-                            registerUidAddNext = True
-                        elif registerUidAddNext :
-                            lcdControl.display("Added new uid")
-                            registerUidAuth = False
-                            registerUidAddNext = False
-                            fileUidList = open("./uids",'w')
-                            fileUidList.write(cardUid)
-                            fileUidList.close()
-                        else :
-                            service.debug('Valid uid')
-                            alarm.toggleState()
+                        # if registerUidAuth :
+                        #     lcdControl.display("Register master key ok")
+                        #     registerUidAuth = False
+                        #     registerUidAddNext = True
+                        # elif registerUidAddNext :
+                        #     lcdControl.display("Added new uid")
+                        #     registerUidAuth = False
+                        #     registerUidAddNext = False
+                        #     fileUidList = open("./uids",'w')
+                        #     fileUidList.write(cardUid)
+                        #     fileUidList.close()
+                        # else :
+                        service.debug('Valid uid')
+                        alarm.toggleState()
                     else :
                         service.debug('Unrecognized uid')
                     lcdControl.displayState(alarm.currentStatus())
