@@ -48,6 +48,9 @@ class ConfigLoader(AlarmService):
         self.addToMap('uibackend', 'password')
 
         self.addToMap('media', 'idle')
+        self.addToMap('media', 'online')
+        self.addToMap('media', 'offline')
+        self.addToMap('media', 'breach')
         self.addToMap('media', 'warning')
         self.addToMap('media', 'alert')
 
