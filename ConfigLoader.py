@@ -47,6 +47,10 @@ class ConfigLoader(AlarmService):
         self.addToMap('uibackend', 'login')
         self.addToMap('uibackend', 'password')
 
+        self.addToMap('media', 'idle')
+        self.addToMap('media', 'warning')
+        self.addToMap('media', 'alert')
+
     def addToMap(self, group, key):
         value = self.configParser.get(group, key)
         self.mapConfig[group + '/' + key] = value
@@ -62,6 +66,9 @@ class ConfigLoader(AlarmService):
 
     def configUiBackend(self, key):
         return self.mapConfig['uibackend/' + key]
+
+    def configMedia(self, key):
+        return self.mapConfig['media/' + key]
 
     def getValidUid(self):
         return self.validUid

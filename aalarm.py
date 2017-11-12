@@ -29,8 +29,8 @@ class Alarm(AlarmService):
     dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
     status = 0
 
-    TIMEOUT_WARNING = 5
-    TIMEOUT_ALERT = 10
+    TIMEOUT_WARNING = 15
+    TIMEOUT_ALERT = 30
     timerWarning = None
     timerAlert = None
 
@@ -52,6 +52,10 @@ class Alarm(AlarmService):
         self.playControl = PlayControl(config)
         self.motionControl = MotionControl(config)
 
+    def idleAction(self):
+        self.debug("Run Idle actions")
+        self.playControl.playIdle()
+
     def onlineAction(self):
         self.debug("Run Online actions")
         self.playControl.start()
@@ -62,14 +66,29 @@ class Alarm(AlarmService):
         self.playControl.stop()
         self.motionControl.stop()
 
+    def breachAction(self):
+        self.debug("Run Breach actions")
+        self.playControl.stop()
+        self.playControl.playIdle()
+
+    def warningAction(self):
+        self.debug("Run Warning actions")
+        self.playControl.playWarning()
+
+    def alertAction(self):
+        self.debug("Run Alert actions")
+        self.playControl.playAlert()
+
     def toggleState(self, force=False):
         self.debug("Toggle state")
         #forced required online
         if force and self.status == 0:
             self.status = 2
+            self.onlineAction()
         #idle
         elif self.status == 0:
             self.status = 1
+            self.idleAction()
         #offline
         else:
             self.status = 0
@@ -125,12 +144,15 @@ class Alarm(AlarmService):
         if self.status == 2:
             self.status = 3;
             self.startTimers();
+            self.breachAction()
         #warning
         elif self.status == 3:
             self.status = 4;
+            self.warningAction()
         #alert
         elif self.status == 4:
             self.status = 5;
+            self.alertAction()
         self.debug('Escaladed to state ' + self.currentStatus())
         with self.lock:
             self.queue.append('ESCALADE')
@@ -266,7 +288,7 @@ if __name__ == '__main__':
     menuControl = MenuControl(running, queue_buttons, lock_buttons)
 
     # Alarm status
-    alarm = Alarm(running, config, queue_alarm, lock_alarm)
+    alarm = Alarm(config, running, queue_alarm, lock_alarm)
 
     # Alarm sensors
     sensors = GpioSensor(running, queue_sensors, lock_sensors)

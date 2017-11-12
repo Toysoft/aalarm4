@@ -5,9 +5,11 @@ from AlarmService import AlarmService
 
 class PlayControl(AlarmService):
     pid = None
+    config = None
 
     def __init__(self, config):
         self.className = "Player"
+        self.config = config
 
     def start(self):
         if self.pid:
@@ -17,7 +19,6 @@ class PlayControl(AlarmService):
         proc = subprocess.Popen(['/usr/bin/nohup','/usr/bin/mpg123','-@','/home/kemkem/playlist/list','-Z','&'])
         self.pid = proc.pid
 
-
     def stop(self):
         if self.pid:
             self.debug("Stop playing music")
@@ -25,3 +26,12 @@ class PlayControl(AlarmService):
             self.pid = None
         else:
             self.debug("No player running")
+
+    def playIdle(self):
+        subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("idle")])
+
+    def playWarning(self):
+        subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("warning")])
+
+    def playAlert(self):
+        subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("alert")])
