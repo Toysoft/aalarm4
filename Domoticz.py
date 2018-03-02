@@ -17,5 +17,8 @@ class Domoticz(AlarmService):
     def call(self, url):
         self.debug('Call Domoticz url [%s]' % url)
         if self.enable:
-            response = requests.get(url, auth=HTTPBasicAuth(self.login, self.password))
-            print(response)
+            try:
+                response = requests.get(url, auth=HTTPBasicAuth(self.login, self.password))
+                #print(response)
+            except:
+                self.debug("Failed to call Domoticz")

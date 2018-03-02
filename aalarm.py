@@ -193,11 +193,17 @@ if __name__ == '__main__':
 
     def reportSensor(sensor, event):
         url = backendUrl + '/event/sensor?sensor=' + sensor + '&event=' + event
-        response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
+        try:
+            response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
+        except:
+            service.debug("Report sensor failed")
 
     def reportState(state):
         url = backendUrl + '/event/state?state=' + state
-        response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
+        try:
+            response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
+        except:
+            service.debug("Report state failed")
 
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())

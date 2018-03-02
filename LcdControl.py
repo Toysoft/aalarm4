@@ -20,6 +20,7 @@ class LcdControl(AlarmService):
         self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
 
     def display(self, message):
+        self.lcd = LCD.Adafruit_CharLCD(1, 2, 3, 4, 5 , 6, self.lines, self.cols, gpio=self.gpio, backlight=7, invert_polarity=False)
         self.debug('\n------------\n%s\n------------\n' % message)
         self.lcd.clear()
         self.lcd.message(message)

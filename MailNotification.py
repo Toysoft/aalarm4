@@ -21,19 +21,18 @@ class MailNotification(AlarmService):
         self.sender = config.configMailer('sender')
 
     def sendMail(self, subject, message):
-        server = smtplib.SMTP(self.smtpHost, self.smtpPort)
-        server.ehlo()
-        server.starttls()
-        server.login(self.login, self.password)
-
-        subject = self.subjectPrefix + " " + subject
-
-        BODY = '\r\n'.join(['To: %s' % self.recipient,
-                            'From: %s' % self.sender,
-                            'Subject: %s' % subject,
-                            '', message])
-
         try:
+            server = smtplib.SMTP(self.smtpHost, self.smtpPort)
+            server.ehlo()
+            server.starttls()
+            server.login(self.login, self.password)
+
+            subject = self.subjectPrefix + " " + subject
+
+            BODY = '\r\n'.join(['To: %s' % self.recipient,
+                                'From: %s' % self.sender,
+                                'Subject: %s' % subject,
+                                '', message])
             server.sendmail(self.recipient, [self.recipient], BODY)
             self.debug('Email sent')
         except:
