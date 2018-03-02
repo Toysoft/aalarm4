@@ -15,7 +15,7 @@ class GpioSensor(AlarmService):
         self.queue = queue
         self.lock = lock
         GPIO.setup(self.PIN_SENSOR_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.BOTH, callback=self.callbackSensor, bouncetime=500)
+        GPIO.add_event_detect(self.PIN_SENSOR_1, GPIO.BOTH, callback=self.callbackSensor, bouncetime=200)
 
     def callbackSensor(self,channel):
         self.debug("GPIO sensor detect channel")

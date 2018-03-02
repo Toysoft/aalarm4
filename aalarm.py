@@ -29,8 +29,8 @@ class Alarm(AlarmService):
     dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
     status = 0
 
-    TIMEOUT_WARNING = 15
-    TIMEOUT_ALERT = 30
+    TIMEOUT_WARNING = 5
+    TIMEOUT_ALERT = 10
     timerWarning = None
     timerAlert = None
 
@@ -81,22 +81,29 @@ class Alarm(AlarmService):
         self.playControl.playAlert()
 
     def toggleState(self, force=False):
+        changed = False
+
         self.debug("Toggle state")
         #forced required online
         if force and self.status == 0:
             self.status = 2
             self.onlineAction()
+            changed = True
         #idle
         elif self.status == 0:
             self.status = 1
             self.idleAction()
+            changed = True
         #offline
         else:
             self.status = 0
             self.offlineAction()
-        self.stopTimers()
-        with self.lock:
-            self.queue.append('STATE')
+            changed = True
+
+        if(changed):
+            self.stopTimers()
+            with self.lock:
+                self.queue.append('STATE')
 
     def toggleStateForce(self):
         self.toggleState(True)
@@ -106,12 +113,12 @@ class Alarm(AlarmService):
         self.escaladeState()
 
     def reportClose(self, channel):
-        #online
+        #idle to online
         if self.status == 1:
             self.status = 2;
             self.onlineAction()
-        with self.lock:
-            self.queue.append('ESCALADE')
+            with self.lock:
+                self.queue.append('ESCALADE')
 
     def startTimers(self):
         if not self.timerWarning:
@@ -141,22 +148,29 @@ class Alarm(AlarmService):
             self.timerAlert = None
 
     def escaladeState(self):
+        changed = False
+
         #breach
         if self.status == 2:
+            changed = True
             self.status = 3;
             self.startTimers();
             self.breachAction()
         #warning
         elif self.status == 3:
+            changed = True
             self.status = 4;
             self.warningAction()
         #alert
         elif self.status == 4:
+            changed = True
             self.status = 5;
             self.alertAction()
-        self.debug('Escaladed to state ' + self.currentStatus())
-        with self.lock:
-            self.queue.append('ESCALADE')
+
+        if(changed):
+            self.debug('Escaladed to state ' + self.currentStatus())
+            with self.lock:
+                self.queue.append('ESCALADE')
 
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
@@ -250,16 +264,17 @@ if __name__ == '__main__':
                     service.debug("Event : alarm")
                     message = queue_alarm.popleft()
 
-                    if alarm.currentStatus() == 'alert':
-                        mailer.sendMail('alert', 'alert has been triggered after a breach')
-                    elif alarm.currentStatus() == 'online':
-                        domoticz.call(config.configDomoticz('sceneLeave'))
-                    elif alarm.currentStatus() == 'offline':
-                        domoticz.call(config.configDomoticz('sceneEnter'))
-                    else :
-                        service.debug("Event : nothing to do")
-                    lcdControl.displayState(alarm.currentStatus())
-                    reportState(alarm.currentStatus())
+                    if(message == "ESCALADE" or message == "STATE"):
+                        if alarm.currentStatus() == 'alert':
+                            mailer.sendMail('alert', 'alert has been triggered after a breach')
+                        elif alarm.currentStatus() == 'online':
+                            domoticz.call(config.configDomoticz('sceneLeave'))
+                        elif alarm.currentStatus() == 'offline':
+                            domoticz.call(config.configDomoticz('sceneEnter'))
+                        else :
+                            service.debug("Event : nothing to do")
+                        lcdControl.displayState(alarm.currentStatus())
+                        reportState(alarm.currentStatus())
 
 
             if queue_nfc:

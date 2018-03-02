@@ -34,7 +34,7 @@ class PlayControl(AlarmService):
         subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("online")])
 
     def playOffline(self):
-            subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("offline")])
+        subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("offline")])
 
     def playBreach(self):
         subprocess.Popen(['/usr/bin/mpg123', self.config.configMedia("breach")])
