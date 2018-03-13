@@ -44,6 +44,9 @@ class Alarm(AlarmService):
     #MotionControl
     motionControl = None
 
+    #Register keys control
+    registerMode = None
+
     def __init__(self, config, running, queue, lock):
         self.className = "Alarm"
         self.running = running
@@ -51,6 +54,7 @@ class Alarm(AlarmService):
         self.lock = lock
         self.playControl = PlayControl(config)
         self.motionControl = MotionControl(config)
+        self.registerMode = False
 
     def idleAction(self):
         self.debug("Run Idle actions")
@@ -107,6 +111,10 @@ class Alarm(AlarmService):
 
     def toggleStateForce(self):
         self.toggleState(True)
+
+    def toggleRegister(self):
+        with self.lock:
+            self.queue.append('REGISTER')
 
     def reportBreach(self, channel):
         #todo use channel
@@ -175,6 +183,16 @@ class Alarm(AlarmService):
     def currentStatus(self):
         return self.dStatusAlarm[self.status]
 
+    def toggleRegisterMode(self):
+        if self.registerMode:
+            self.registerMode = False
+        else:
+            self.registerMode = True
+        self.debug('registerMode ' + str(self.registerMode))
+
+    def isRegisterMode(self):
+        return self.registerMode
+
 if __name__ == '__main__':
     #Threading queues and locks
     queue_alarm = deque()
@@ -198,9 +216,6 @@ if __name__ == '__main__':
     service = AlarmService()
     service.setClassName("Main")
 
-    registerUidAuth = False
-    registerUidAddNext = False
-
     backendUrl = config.configUiBackend("url")
     backendLogin = config.configUiBackend("login")
     backendPassword = config.configUiBackend("password")
@@ -221,6 +236,7 @@ if __name__ == '__main__':
 
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
+
         while True:
             if queue_buttons:
                 with lock_buttons:
@@ -229,10 +245,9 @@ if __name__ == '__main__':
                         service.debug("Exit from menu")
                         lcdControl.displayStateForced(alarm.currentStatus())
                     elif button == "MENU:register":
-                        service.debug("Register a new NFC uid")
+                        service.debug("<<<TODO>>>")
                         #nfc.keepNextUid()
-                        registerUidAuth = True
-                        registerUidAddNext = False
+                        #registerMode = True
                     else:
                         lcdControl.display(menuControl.currentMenu())
 
@@ -275,30 +290,34 @@ if __name__ == '__main__':
                             service.debug("Event : nothing to do")
                         lcdControl.displayState(alarm.currentStatus())
                         reportState(alarm.currentStatus())
-
+                    elif(message == "REGISTER"):
+                        service.debug("Toggle registerMode")
+                        alarm.toggleRegisterMode()
 
             if queue_nfc:
                 with lock_nfc:
                     service.debug("Event : nfc")
                     cardUid = queue_nfc.popleft()#.decode("utf-8")
                     service.debug('Card uid [%s]' % cardUid)
-                    if cardUid in validUid.values():
-                        # if registerUidAuth :
-                        #     lcdControl.display("Register master key ok")
-                        #     registerUidAuth = False
+
+                    if alarm.isRegisterMode():
+                        lcdControl.display("Registered " + cardUid)
+                        alarm.toggleRegisterMode()
+                        #     registerMode = False
                         #     registerUidAddNext = True
                         # elif registerUidAddNext :
                         #     lcdControl.display("Added new uid")
-                        #     registerUidAuth = False
+                        #     registerMode = False
                         #     registerUidAddNext = False
                         #     fileUidList = open("./uids",'w')
                         #     fileUidList.write(cardUid)
                         #     fileUidList.close()
-                        # else :
-                        service.debug('Valid uid')
-                        alarm.toggleState()
-                    else :
-                        service.debug('Unrecognized uid')
+                    else:
+                        if cardUid in validUid.values():
+                            service.debug('Valid uid')
+                            alarm.toggleState()
+                        else :
+                            service.debug('Unrecognized uid')
                     lcdControl.displayState(alarm.currentStatus())
             sleep(.9)
 
@@ -327,7 +346,6 @@ if __name__ == '__main__':
 
     #Domoticz rest controls
     domoticz = Domoticz(config)
-
 
     #Main thread
     main_thread = threading.Thread(target=main_loop)
@@ -358,6 +376,12 @@ if __name__ == '__main__':
     @requires_auth
     def status():
         return alarm.currentStatus()
+
+    @app.route("/register")
+    @requires_auth
+    def modeRegister():
+        alarm.toggleRegister()
+        return 'ok'
 
     @app.route("/status/toggle")
     def toggle():
