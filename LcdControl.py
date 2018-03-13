@@ -11,7 +11,7 @@ class LcdControl(AlarmService):
     lcd = None
     currentMenu = None
     timerBacklight = None
-    TIMEOUT_BACKLIGHT = 10
+    TIMEOUT_BACKLIGHT = 30
     lastStatus = None
 
     def __init__(self):

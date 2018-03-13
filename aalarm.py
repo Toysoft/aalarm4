@@ -15,6 +15,7 @@ from PlayControl import PlayControl
 from MotionControl import MotionControl
 from MailNotification import MailNotification
 from Domoticz import Domoticz
+from UiRestClient import UiRestClient
 
 from AlarmService import AlarmService
 
@@ -22,8 +23,8 @@ from functools import wraps
 from flask import request, Response
 
 #REST calls
-import requests
-from requests.auth import HTTPBasicAuth
+# import requests
+# from requests.auth import HTTPBasicAuth
 
 class Alarm(AlarmService):
     dStatusAlarm = {0: 'offline', 1: 'idle', 2: 'online', 3: 'breach', 4: 'warning', 5: 'alert'}
@@ -216,24 +217,6 @@ if __name__ == '__main__':
     service = AlarmService()
     service.setClassName("Main")
 
-    backendUrl = config.configUiBackend("url")
-    backendLogin = config.configUiBackend("login")
-    backendPassword = config.configUiBackend("password")
-
-    def reportSensor(sensor, event):
-        url = backendUrl + '/event/sensor?sensor=' + sensor + '&event=' + event
-        try:
-            response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
-        except:
-            service.debug("Report sensor failed")
-
-    def reportState(state):
-        url = backendUrl + '/event/state?state=' + state
-        try:
-            response = requests.get(url, auth=HTTPBasicAuth(backendLogin, backendPassword))
-        except:
-            service.debug("Report state failed")
-
     def main_loop():
         lcdControl.displayState(alarm.currentStatus())
 
@@ -266,12 +249,12 @@ if __name__ == '__main__':
                     if patternOpen.match(message):
                         sensor = matchOpen.group(1)
                         alarm.reportBreach(sensor)
-                        reportSensor('door', 'open')
+                        uiRestClient.reportSensor('door', 'open')
                     #Sensor state changed to closed
                     elif patternClose.match(message):
                         sensor = matchClose.group(1)
                         alarm.reportClose(sensor)
-                        reportSensor('door', 'close')
+                        uiRestClient.reportSensor('door', 'close')
                     lcdControl.displayState(alarm.currentStatus())
 
             if queue_alarm:
@@ -289,7 +272,7 @@ if __name__ == '__main__':
                         else :
                             service.debug("Event : nothing to do")
                         lcdControl.displayState(alarm.currentStatus())
-                        reportState(alarm.currentStatus())
+                        uiRestClient.reportState(alarm.currentStatus())
                     elif(message == "REGISTER"):
                         service.debug("Toggle registerMode")
                         alarm.toggleRegisterMode()
@@ -301,17 +284,9 @@ if __name__ == '__main__':
                     service.debug('Card uid [%s]' % cardUid)
 
                     if alarm.isRegisterMode():
-                        lcdControl.display("Registered " + cardUid)
+                        service.debug("Registered")
+                        uiRestClient.reportKeyRegistration(cardUid)
                         alarm.toggleRegisterMode()
-                        #     registerMode = False
-                        #     registerUidAddNext = True
-                        # elif registerUidAddNext :
-                        #     lcdControl.display("Added new uid")
-                        #     registerMode = False
-                        #     registerUidAddNext = False
-                        #     fileUidList = open("./uids",'w')
-                        #     fileUidList.write(cardUid)
-                        #     fileUidList.close()
                     else:
                         if cardUid in validUid.values():
                             service.debug('Valid uid')
@@ -346,6 +321,9 @@ if __name__ == '__main__':
 
     #Domoticz rest controls
     domoticz = Domoticz(config)
+
+    #Rest client
+    uiRestClient = UiRestClient(config)
 
     #Main thread
     main_thread = threading.Thread(target=main_loop)
