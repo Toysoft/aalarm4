@@ -289,7 +289,10 @@ if __name__ == '__main__':
                         alarm.toggleRegisterMode()
                     else:
                         if cardUid in validUid.values():
-                            service.debug('Valid uid')
+                            service.debug('Valid master uid')
+                            alarm.toggleState()
+                        elif uiRestClient.verifyKey(cardUid):
+                            service.debug('Valid user uid')
                             alarm.toggleState()
                         else :
                             service.debug('Unrecognized uid')

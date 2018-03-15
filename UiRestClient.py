@@ -33,3 +33,15 @@ class UiRestClient(AlarmService):
             response = requests.get(url, auth=HTTPBasicAuth(self.backendLogin, self.backendPassword))
         except:
             self.debug("Report key failed")
+
+    def verifyKey(self, uid):
+        url = self.backendUrl + '/keys/verify?uid=' + uid
+        try:
+            response = requests.get(url, auth=HTTPBasicAuth(self.backendLogin, self.backendPassword))
+            self.debug(response.text)
+            if response.text == 'accepted':
+                return True
+            else:
+                return False
+        except:
+            self.debug("Verify key failed " + response)
