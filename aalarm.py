@@ -130,21 +130,36 @@ class Alarm(AlarmService):
                 self.queue.append('ESCALADE')
 
     def startTimers(self):
+        self.debug('Start timers')
+
         if not self.timerWarning:
             self.timerWarning = Timer(self.TIMEOUT_WARNING,self.callbackEscalade,args=['warning'])
             self.timerWarning.start()
+        else:
+            self.debug('Timer Warning cannot be started')
+
+        if not self.timerAlert:
             self.timerAlert = Timer(self.TIMEOUT_ALERT,self.callbackEscalade,args=['alert'])
             self.timerAlert.start()
+        else:
+            self.debug('Timer Alert cannot be started')
 
     def stopTimers(self):
         self.debug('Stop timers')
 
         if self.timerWarning is not None:
-            self.debug('Stop warning')
+            self.debug('Stop Timer Warning')
             self.timerWarning.cancel()
+            self.timerWarning = None
+        else :
+            self.debug('No Timer Warning to stop')
+
         if self.timerAlert is not None:
-            self.debug('Stop alert')
+            self.debug('Stop Timer Alert')
             self.timerAlert.cancel()
+            self.timerAlert = None
+        else :
+            self.debug('No Timer Alert to stop')
 
     def callbackEscalade(self, timerName):
         self.escaladeState()
