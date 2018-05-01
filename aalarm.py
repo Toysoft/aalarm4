@@ -63,18 +63,19 @@ class Alarm(AlarmService):
 
     def onlineAction(self):
         self.debug("Run Online actions")
-        self.playControl.start()
+        self.playControl.playMusic()
         self.motionControl.start()
 
     def offlineAction(self):
         self.debug("Run Offline actions")
-        self.playControl.stop()
+        self.playControl.stopMusic()
+        self.playControl.stopAllNotifyPlayers()
         self.playControl.playOffline()
         self.motionControl.stop()
 
     def breachAction(self):
         self.debug("Run Breach actions")
-        self.playControl.stop()
+        self.playControl.stopMusic()
         self.playControl.playBreach()
 
     def warningAction(self):
