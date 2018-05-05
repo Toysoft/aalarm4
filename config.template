@@ -24,3 +24,7 @@ stmpHost=<SMTP HOST>
 stmpPort=<SMTP PORT>
 login=<SMTP LOGIN>
 password=<SMTP PASSWORD>
+
+[timeout]
+warning=5
+alert=15

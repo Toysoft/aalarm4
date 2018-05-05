@@ -54,6 +54,9 @@ class ConfigLoader(AlarmService):
         self.addToMap('media', 'warning')
         self.addToMap('media', 'alert')
 
+        self.addToMap('timeout', 'warning')
+        self.addToMap('timeout', 'alert')
+
     def addToMap(self, group, key):
         value = self.configParser.get(group, key)
         self.mapConfig[group + '/' + key] = value
@@ -72,6 +75,9 @@ class ConfigLoader(AlarmService):
 
     def configMedia(self, key):
         return self.mapConfig['media/' + key]
+
+    def configTimeout(self, key):
+        return self.mapConfig['timeout/' + key]
 
     def getValidUid(self):
         return self.validUid

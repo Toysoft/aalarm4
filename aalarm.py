@@ -56,6 +56,8 @@ class Alarm(AlarmService):
         self.playControl = PlayControl(config)
         self.motionControl = MotionControl(config)
         self.registerMode = False
+        self.TIMEOUT_WARNING = int(config.configTimeout('warning'))
+        self.TIMEOUT_ALERT = int(config.configTimeout('alert'))
 
     def idleAction(self):
         self.debug("Run Idle actions")
